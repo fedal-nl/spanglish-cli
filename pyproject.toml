@@ -1,0 +1,14 @@
+[project]
+name = "spanglishtemp"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+    "alembic>=1.17.2",
+    "psycopg>=3.2.13",
+    "questionary>=2.1.1",
+    "rich>=14.2.0",
+    "sqlalchemy>=2.0.44",
+    "typer>=0.20.0",
+]

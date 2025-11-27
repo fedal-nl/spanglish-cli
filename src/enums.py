@@ -7,3 +7,4 @@ class CategoryEnum(str, Enum):
     DAY = "Days"
     MONTH = "Months"
     FOOD = "Food"
+    COLOR = "Colors"

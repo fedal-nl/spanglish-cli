@@ -12,3 +12,4 @@ class Base(DeclarativeBase):
 
 def get_session():
     return SessionLocal()
+    

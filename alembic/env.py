@@ -7,7 +7,7 @@ from alembic import context
 
 from src.db.base import Base
 from src.settings import DATABASE_URL
-from src.db.models import Word, Verb
+from src.db.models import Word, Verb, Translation
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -71,7 +71,9 @@ def run_migrations_online() -> None:
 
     with connectable.connect() as connection:
         context.configure(
-            connection=connection, target_metadata=target_metadata
+            connection=connection,
+            target_metadata=target_metadata,
+            render_as_batch=True # required for sqlite3
         )
 
         with context.begin_transaction():

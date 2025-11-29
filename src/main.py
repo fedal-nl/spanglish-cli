@@ -58,8 +58,25 @@ def add_verb(word_id: int, yo: str, tu: str, ella_el: str,
     console.print("[green]Verb added.[/green]")
 
 @app.command()
-def list_words(category: CategoryEnum = typer.Option(None)):
-    rows = crud.list_words(category)
+def list_words():
+    category = None
+    limit = None
+    is_random = False
+    
+    # check with the user
+    with_category = typer.prompt(
+        "Do you want to filer by Category ?",
+        show_choices=["yes", "no"],
+        default="no"
+    )
+
+    if with_category.lower() == "yes":
+        category = questionary.select("Select a category", choices=CategoryEnum).ask()
+    
+    limit = typer.prompt("How many records ?", default=0)
+    is_random = typer.prompt("Random words ?", show_choices=[0, 1], default=0)
+
+    rows = crud.list_words(category=category, limit=limit, is_random=is_random)
 
     table = Table(title="Words", show_lines=True)
     table.add_column("ID", style="cyan")
@@ -92,6 +109,10 @@ def list_verbs():
         )
 
     console.print(table)
+
+
+
+
 
 if __name__ == "__main__":
     app()

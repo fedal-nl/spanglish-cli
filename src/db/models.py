@@ -1,7 +1,17 @@
-from sqlalchemy import Column, Integer, String, ForeignKey, Enum, UniqueConstraint
+from sqlalchemy import (
+    Column,
+    Integer,
+    String,
+    ForeignKey,
+    Enum,
+    UniqueConstraint,
+    DateTime,
+    Boolean
+)
 from sqlalchemy.orm import relationship
 from .base import Base
 from src.enums import CategoryEnum
+from datetime import datetime
 
 class Word(Base):
     __tablename__ = "words"
@@ -15,6 +25,7 @@ class Word(Base):
     
     # Relationship to translations
     translations = relationship("Translation", back_populates="word", cascade="all, delete-orphan")
+    quiz = relationship("Quiz", back_populates="word", cascade="all, delete-orphan")
 
 class Translation(Base):
     __tablename__ = "translations"
@@ -43,3 +54,14 @@ class Verb(Base):
     ellos_ellas = Column(String)
 
     word = relationship("Word", back_populates="verb")
+
+
+class Quiz(Base):
+    __tablename__ = "quizes"
+
+    id = Column(Integer, primary_key=True)
+    word_id = Column(Integer, ForeignKey("words.id"), nullable=False)
+    is_correct = Column(Boolean, nullable=False, index=True)
+    created_at = Column(DateTime, default=datetime.now, index=True)
+
+    word = relationship("Word", back_populates="quiz")

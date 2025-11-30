@@ -1,13 +1,15 @@
 from logging.config import fileConfig
 
-from sqlalchemy import engine_from_config
-from sqlalchemy import pool
+from sqlalchemy import engine_from_config, pool
 
 from alembic import context
-
 from src.db.base import Base
+from src.db.models import QuizAttempt, QuizSession, Translation, Verb, Word
 from src.settings import DATABASE_URL
-from src.db.models import Word, Verb, Translation
+
+# Models imported above are required for Alembic autogenerate - do not remove
+_ = (Word, Translation, Verb, QuizSession, QuizAttempt)
+
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -42,7 +44,7 @@ def run_migrations_offline() -> None:
     script output.
 
     """
-    
+
     url = config.get_main_option("sqlalchemy.url", DATABASE_URL)
     context.configure(
         url=url,

@@ -1,5 +1,8 @@
 # settings.py
+import os
 
-DATABASE_URL = "sqlite:///spanish.db"
-# For Postgres:
-# DATABASE_URL = "postgresql+psycopg://user:pass@localhost:5432/spanish"
+from dotenv import load_dotenv
+
+load_dotenv()
+
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///spanish.db")

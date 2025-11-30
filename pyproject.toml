@@ -6,9 +6,19 @@ readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
     "alembic>=1.17.2",
+    "dotenv>=0.9.9",
     "psycopg>=3.2.13",
+    "psycopg2-binary>=2.9.11",
+    "pytest>=9.0.1",
     "questionary>=2.1.1",
     "rich>=14.2.0",
+    "ruff>=0.14.7",
     "sqlalchemy>=2.0.44",
     "typer>=0.20.0",
 ]
+
+# configure Ruff linter
+[tool.ruff]
+line-length = 88
+select = ["E", "F", "W", "C90", "B", "I", "Q000"]
+exclude = ["__init__.py", "alembic/versions/*"]

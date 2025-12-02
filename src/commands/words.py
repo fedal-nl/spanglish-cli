@@ -6,11 +6,17 @@ from rich.table import Table
 from src.db import crud
 from src.enums import CategoryEnum
 
-app = typer.Typer()
+app = typer.Typer(
+    add_completion=False,
+    help="📝 Word management commands: add, list words and verbs."
+)
 console = Console()
 
 @app.command()
-def add_word(interactive: bool = True):
+def add(interactive: bool = True):
+    """Add a new word to the database along with its translations.
+    If the word is a verb, also add its conjugations.
+    """
     while interactive:
         word = typer.prompt("Enter the Spanish word").capitalize()
         category = questionary.select("Select a category", choices=CategoryEnum).ask()

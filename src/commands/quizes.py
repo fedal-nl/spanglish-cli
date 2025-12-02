@@ -7,11 +7,14 @@ from src.db import crud
 from src.enums import CategoryEnum
 from src.progressbars.quiz import quiz_progress
 
-app = typer.Typer()
+app = typer.Typer(
+    add_completion=False,
+    help="🎯 Quiz commands: start quizzes and view performance."
+)
 console = Console()
 
 @app.command()
-def start_quiz():
+def start():
     """Start a quiz session..."""
 
     quiz_session = crud.create_quiz_session()

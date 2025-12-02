@@ -21,8 +21,8 @@ class Word(Base):
     __tablename__ = "words"
 
     id = Column(Integer, primary_key=True, index=True)
-    word = Column(String, nullable=False, unique=True)
-    category = Column(Enum(CategoryEnum), nullable=False)
+    word = Column(String, nullable=False, index=True)
+    category = Column(Enum(CategoryEnum), nullable=False, index=True)
 
     # Relationship to verbs
     verb = relationship("Verb", back_populates="word", uselist=False)
@@ -37,6 +37,11 @@ class Word(Base):
         "QuizAttempt",
         back_populates="word",
         cascade="all, delete-orphan"
+    )
+
+    # create a constraint to ensure word uniqueness
+    __table_args__ = (
+        UniqueConstraint("word", "category"),
     )
 
 class Translation(Base):
@@ -77,6 +82,7 @@ class QuizSession(Base):
     __tablename__ = "quiz_sessions"
 
     id = Column(Integer, primary_key=True)
+    created_at = Column(DateTime, default=datetime.now, index=True)
 
     attempts = relationship(
         "QuizAttempt",

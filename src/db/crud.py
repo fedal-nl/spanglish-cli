@@ -90,8 +90,9 @@ def create_quiz_attempt(session_id: int, word_id: int, answered_correctly: bool)
 # def list_quizes():
 #     with get_session() as session:
 #         return (
-#             session.query(Quiz).options(selectinload(Quiz.word))
+#             session.query(QuizAttempt)
+#             .options(selectinload(QuizAttempt.word))
 #             .join(Word)
-#             .order_by(Quiz.created_at.desc())
+#             .order_by(QuizAttempt.created_at.desc())
 #             .all()
 #         )

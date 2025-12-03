@@ -33,6 +33,11 @@ def start():
         ).ask()
 
     limit = typer.prompt("How many records ?", default=10, type=int)
+    language =  questionary.select(
+        "Select a language",
+        choices=["es", "en"],
+        default="es"
+    ).ask()
 
     rows = crud.list_words(category=category, limit=limit, is_random=True)
     # ------------------------------------------
@@ -59,42 +64,53 @@ def start():
             #     >>> PAUSE PROGRESS <<<
             # ===============================
             progress.stop()
+            # If the selected language is English, the question will be shown in English
+            # ----- SHOW HINT IF Spanish -----
+            if language == "en":
+                translation = ','.join(t.translation for t in w.translations)
+                console.print(f"\n[bold blue]Translate to Spanish:[/] {translation}")
 
-            # ----- ASK THE QUESTION -----
-            console.print(f"\n[bold blue]Word:[/] {w.word} ({w.category})")
+                user_translation = typer.prompt("Enter the translation").strip().lower()
+                answered_correctly = False
 
-            user_translation = typer.prompt("Enter the translation").strip().lower()
-            answered_correctly = False
+                if user_translation == w.word.lower():
+                    answered_correctly = True
+            else:
+                # ----- ASK THE QUESTION -----
+                console.print(f"\n[bold blue]Word:[/] {w.word} ({w.category})")
 
-            correct_translations = [
-                t.translation.lower() for t in w.translations
-            ]
+                user_translation = typer.prompt("Enter the translation").strip().lower()
+                answered_correctly = False
 
-            if user_translation in correct_translations:
-                answered_correctly = True
+                correct_translations = [
+                    t.translation.lower() for t in w.translations
+                ]
 
-                # Verb conjugation section
-                if w.category == CategoryEnum.VERB:
-                    console.print("[bold blue]Now conjugate the verb:[/bold blue]")
+                if user_translation in correct_translations:
+                    answered_correctly = True
 
-                    user_yo = typer.prompt("yo").strip().capitalize()
-                    user_tu = typer.prompt("tu").strip().capitalize()
-                    user_ella_el = typer.prompt("ella/el").strip().capitalize()
-                    user_nosotros = typer.prompt("nosotros").strip().capitalize()
-                    user_vosotros = typer.prompt("vosotros").strip().capitalize()
-                    user_ellos_ellas = typer.prompt("ellos_ellas").strip().capitalize()
+            # Verb conjugation section
+            if w.category == CategoryEnum.VERB:
+                console.print("[bold blue]Now conjugate the verb:[/bold blue]")
 
-                    verb = w.verb
+                user_yo = typer.prompt("yo").strip().capitalize()
+                user_tu = typer.prompt("tu").strip().capitalize()
+                user_ella_el = typer.prompt("ella/el").strip().capitalize()
+                user_nosotros = typer.prompt("nosotros").strip().capitalize()
+                user_vosotros = typer.prompt("vosotros").strip().capitalize()
+                user_ellos_ellas = typer.prompt("ellos_ellas").strip().capitalize()
 
-                    if not (
-                        user_yo == verb.yo and
-                        user_tu == verb.tu and
-                        user_ella_el == verb.ella_el and
-                        user_nosotros == verb.nosotros and
-                        user_vosotros == verb.vosotros and
-                        user_ellos_ellas == verb.ellos_ellas
-                    ):
-                        answered_correctly = False
+                verb = w.verb
+
+                if not (
+                    user_yo == verb.yo and
+                    user_tu == verb.tu and
+                    user_ella_el == verb.ella_el and
+                    user_nosotros == verb.nosotros and
+                    user_vosotros == verb.vosotros and
+                    user_ellos_ellas == verb.ellos_ellas
+                ):
+                    answered_correctly = False
 
             # ===============================
             #    >>> RESUME PROGRESS <<<

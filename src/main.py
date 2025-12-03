@@ -5,6 +5,7 @@ from rich.text import Text
 
 from src.commands.quizes import app as quiz_app
 from src.commands.words import app as words_app
+from src.commands.sentences import app as sentences_app
 
 console = Console()
 
@@ -60,6 +61,12 @@ app.add_typer(
     words_app,
     name="words",
     help="📚 Word commands: list, add, and manage vocabulary."
+)
+
+app.add_typer(
+    sentences_app,
+    name="sentences",
+    help="📝 Sentence commands: add, list, and manage sentences."
 )
 
 

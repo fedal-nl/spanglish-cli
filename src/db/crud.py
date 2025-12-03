@@ -1,10 +1,10 @@
 from sqlalchemy import func
 from sqlalchemy.orm import selectinload
 
-from src.enums import CategoryEnum
+from src.enums import CategoryEnum, TopicEnum
 
 from .base import get_session
-from .models import QuizAttempt, QuizSession, Translation, Verb, Word
+from .models import QuizAttempt, QuizSession, Translation, Verb, Word, Sentence
 
 
 def create_word(word: str, category: str, translations: list[str]):
@@ -96,3 +96,30 @@ def create_quiz_attempt(session_id: int, word_id: int, answered_correctly: bool)
 #             .order_by(QuizAttempt.created_at.desc())
 #             .all()
 #         )
+
+
+def create_sentence(spanish: str, english: str, topic: TopicEnum):
+    with get_session() as session:
+        sentence = Sentence(
+            spanish=spanish,
+            english=english,
+            topic=topic
+        )
+        session.add(sentence)
+        session.commit()
+        return sentence
+
+
+def list_sentences(topic: TopicEnum=None, limit: int=None, is_random: bool=False):
+    with get_session() as session:
+        query = session.query(Sentence)
+
+        if topic is not None:
+            query = query.filter(Sentence.topic == topic)
+
+        query = query.order_by(func.random() if is_random else Sentence.spanish)
+
+        if limit is not None:
+            query = query.limit(limit)
+
+        return query.all()

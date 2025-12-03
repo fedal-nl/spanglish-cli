@@ -28,7 +28,7 @@ def start():
     category = None
     if with_category:
         category = questionary.select(
-            "Select a category", 
+            "Select a category",
             choices=CategoryEnum
         ).ask()
 
@@ -67,7 +67,7 @@ def start():
             # If the selected language is English, the question will be shown in English
             # ----- SHOW HINT IF Spanish -----
             if language == "en":
-                translation = ','.join(t.translation for t in w.translations)
+                translation = ",".join(t.translation for t in w.translations)
                 console.print(f"\n[bold blue]Translate to Spanish:[/] {translation}")
 
                 user_translation = typer.prompt("Enter the translation").strip().lower()

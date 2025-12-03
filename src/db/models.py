@@ -12,7 +12,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import relationship
 
-from src.enums import CategoryEnum
+from src.enums import CategoryEnum, TopicEnum
 
 from .base import Base
 
@@ -23,6 +23,7 @@ class Word(Base):
     id = Column(Integer, primary_key=True, index=True)
     word = Column(String, nullable=False, index=True)
     category = Column(Enum(CategoryEnum), nullable=False, index=True)
+    created_at = Column(DateTime, default=datetime.now, index=True)
 
     # Relationship to verbs
     verb = relationship("Verb", back_populates="word", uselist=False)
@@ -77,6 +78,18 @@ class Verb(Base):
 
     word = relationship("Word", back_populates="verb")
 
+class Sentence(Base):
+    __tablename__ = "sentences"
+
+    id = Column(Integer, primary_key=True)
+    spanish = Column(String, nullable=False)
+    english = Column(String, nullable=False)
+    topic = Column(Enum(TopicEnum), nullable=False, index=True)
+    created_at = Column(DateTime, default=datetime.now, index=True)
+
+    __table_args__ = (
+        UniqueConstraint("spanish", "english"),
+    )
 
 class QuizSession(Base):
     __tablename__ = "quiz_sessions"

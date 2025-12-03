@@ -64,7 +64,7 @@ def add_verb(word_id: int, yo: str, tu: str, ella_el: str,
     console.print("[green]Verb added.[/green]")
 
 @app.command()
-def list_words():
+def list():
     """List all words in the database. Optionally filter by category, 
     limit the number of records, and randomize the selection.
     """

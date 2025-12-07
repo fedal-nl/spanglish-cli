@@ -4,8 +4,8 @@ from rich.panel import Panel
 from rich.text import Text
 
 from src.commands.quizes import app as quiz_app
-from src.commands.words import app as words_app
 from src.commands.sentences import app as sentences_app
+from src.commands.words import app as words_app
 
 console = Console()
 

@@ -1,10 +1,10 @@
 from sqlalchemy import func
 from sqlalchemy.orm import selectinload
 
-from src.enums import CategoryEnum, TopicEnum
+from src.enums import CategoryEnum, TopicEnum, QuizContentTypeEnum
 
 from .base import get_session
-from .models import QuizAttempt, QuizSession, Translation, Verb, Word, Sentence
+from .models import QuizAttempt, QuizSession, Sentence, Translation, Verb, Word
 
 
 def create_word(word: str, category: str, translations: list[str]):
@@ -75,11 +75,17 @@ def create_quiz_session():
         return quiz_session
 
 
-def create_quiz_attempt(session_id: int, word_id: int, answered_correctly: bool):
+def create_quiz_attempt(
+        session_id: int,
+        content_type: QuizContentTypeEnum,
+        content_id: int,
+        answered_correctly: bool
+    ):
     with get_session() as session:
         quiz_attempt = QuizAttempt(
             session_id=session_id,
-            word_id=word_id,
+            content_type=content_type,
+            content_id=content_id,
             answered_correctly=answered_correctly
         )
         session.add(quiz_attempt)

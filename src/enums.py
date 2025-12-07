@@ -23,3 +23,12 @@ class TopicEnum(str, Enum):
     SONGS = "Songs"
     TIME = "Time"
     FOOD = "Food"
+
+class QuizContentTypeEnum(str, Enum):
+    WORD = "word"
+    SENTENCE = "sentence"
+
+
+class LanguageEnum(str, Enum):
+    SPANISH = "Spanish"
+    ENGLISH = "English"

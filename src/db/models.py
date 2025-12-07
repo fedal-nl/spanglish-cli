@@ -10,9 +10,9 @@ from sqlalchemy import (
     String,
     UniqueConstraint,
 )
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import object_session, relationship
 
-from src.enums import CategoryEnum, TopicEnum
+from src.enums import CategoryEnum, QuizContentTypeEnum, TopicEnum
 
 from .base import Base
 
@@ -31,11 +31,6 @@ class Word(Base):
     # Relationship to translations
     translations = relationship(
         "Translation",
-        back_populates="word",
-        cascade="all, delete-orphan"
-    )
-    quiz_attempts = relationship(
-        "QuizAttempt",
         back_populates="word",
         cascade="all, delete-orphan"
     )
@@ -107,10 +102,13 @@ class QuizAttempt(Base):
     __tablename__ = "quiz_attempts"
 
     id = Column(Integer, primary_key=True)
-    word_id = Column(Integer, ForeignKey(
-        "words.id",
-        name="fk_quizattempt_word_id_words"
-        ), nullable=False)
+    content_type = Column(
+        Enum(QuizContentTypeEnum),
+        nullable=False,
+        index=True
+    )
+    content_id = Column(Integer, nullable=False, index=True)
+
     answered_correctly = Column(Boolean, nullable=False, index=True)
     answered_at = Column(DateTime, default=datetime.now, index=True)
     session_id = Column(Integer, ForeignKey(
@@ -118,5 +116,27 @@ class QuizAttempt(Base):
         name="fk_quizattempt_session_id_quizsessions"
     ), nullable=False)
 
-    word = relationship("Word", back_populates="quiz_attempts")
     session = relationship("QuizSession", back_populates="attempts")
+
+    @property
+    def content(self):
+        """
+        Return the content object,Word or Sentence based on content_type and content_id.
+        """
+        if self.content_type == QuizContentTypeEnum.WORD:
+            return object_session(self).query(Word).get(self.content_id)
+        elif self.content_type == QuizContentTypeEnum.SENTENCE:
+            return object_session(self).query(Sentence).get(self.content_id)
+        return None
+
+    @property
+    def is_word(self) -> bool:
+        if self.content_type == QuizContentTypeEnum.WORD:
+            return True
+        return False
+
+    @property
+    def is_sentence(self) -> bool:
+        if self.content_type == QuizContentTypeEnum.SENTENCE:
+            return True
+        return False

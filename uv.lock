@@ -299,6 +299,7 @@ source = { virtual = "." }
 dependencies = [
     { name = "alembic" },
     { name = "dotenv" },
+    { name = "prompt-toolkit" },
     { name = "psycopg" },
     { name = "psycopg2-binary" },
     { name = "pytest" },
@@ -313,6 +314,7 @@ dependencies = [
 requires-dist = [
     { name = "alembic", specifier = ">=1.17.2" },
     { name = "dotenv", specifier = ">=0.9.9" },
+    { name = "prompt-toolkit", specifier = ">=3.0.52" },
     { name = "psycopg", specifier = ">=3.2.13" },
     { name = "psycopg2-binary", specifier = ">=2.9.11" },
     { name = "pytest", specifier = ">=9.0.1" },

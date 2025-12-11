@@ -1,5 +1,6 @@
 import questionary
 import typer
+from prompt_toolkit.shortcuts import choice
 from rich.console import Console
 from rich.table import Table
 
@@ -8,19 +9,23 @@ from src.enums import CategoryEnum
 
 app = typer.Typer(
     add_completion=False,
-    help="📝 Word management commands: add, list words and verbs."
+    help="📝 Dictionary management commands: add, list words, sentences and verbs."
 )
 console = Console()
 
+
 @app.command()
 def add(interactive: bool = True):
-    """Add a new word to the database along with its translations.
+    """Add a new text to the database along with its translations.
     If the word is a verb, also add its conjugations.
     """
     while interactive:
-        word = typer.prompt("Enter the Spanish word").capitalize()
-        category = questionary.select("Select a category", choices=CategoryEnum).ask()
 
+        category = questionary.select(
+            "Select a category",
+            choices=CategoryEnum
+        ).ask()
+        text = typer.prompt("Enter the Spanish text").capitalize()
         translations = []
         while True:
             t = typer.prompt("Enter a translation").strip().lower()
@@ -30,12 +35,17 @@ def add(interactive: bool = True):
             if not more:
                 break
 
-        w = crud.create_word(word, category, translations=translations)
+        added_text = crud.add_text_to_dictionary(
+            text=text,
+            category=category,
+            translations=translations
+        )
         translation = ",".join(t for t in translations)
-        console.print(f"[green]Added:[/] {w.word} ({w.category}) -> {translation}")
+        console.print(f"[green]Added:[/] {added_text.text} ({added_text.category}) -> \
+                      {translation}")
 
         if category == CategoryEnum.VERB:
-            word_id = w.id
+            text_id = added_text.id
             yo = typer.prompt("Enter the verb for yo").strip().capitalize()
             tu = typer.prompt("Enter the verb for tu").strip().capitalize()
             ella_el = typer.prompt("Enter the verb for ella_el").strip().capitalize()
@@ -44,7 +54,7 @@ def add(interactive: bool = True):
             ellos_ellas = typer.prompt("Enter the verb for ellos_ellas").strip().capitalize()
 
             add_verb(
-                word_id=word_id,
+                text_id=text_id,
                 yo=yo,
                 tu=tu,
                 ella_el=ella_el,
@@ -53,41 +63,39 @@ def add(interactive: bool = True):
                 ellos_ellas=ellos_ellas
             )
 
-        more = typer.confirm("Add another word?", default=True)
+        more = typer.confirm("Add another text?", default=True)
         if not more:
             break
 
 
-def add_verb(word_id: int, yo: str, tu: str, ella_el: str,
+def add_verb(text_id: int, yo: str, tu: str, ella_el: str,
              nosotros: str, vosotros: str, ellos_ellas: str):
-    crud.create_verb(word_id, yo, tu, ella_el, nosotros, vosotros, ellos_ellas)
+    crud.create_verb(text_id, yo, tu, ella_el, nosotros, vosotros, ellos_ellas)
     console.print("[green]Verb added.[/green]")
 
 @app.command()
 def list():
-    """List all words in the database. Optionally filter by category, 
+    """List all texts in the database. Optionally filter by category,
     limit the number of records, and randomize the selection.
     """
-    category: bool = None
-    limit: int|None = None
-    is_random: bool = False
-
-    # check with the user
-    with_category = typer.confirm(
-        "Do you want to filer by Category ?", default=False
+    category = choice(
+        message="Select a category ?",
+        options=[(None, "All")] + [(c, c.name) for c in CategoryEnum],
+        default="All"
     )
-
-    if with_category:
-        category = questionary.select("Select a category", choices=CategoryEnum).ask()
 
     limit = typer.prompt("How many records ?", default=10, type=int)
     is_random = typer.confirm("Random words ?", default=False)
 
-    rows = crud.list_words(category=category, limit=limit, is_random=is_random)
+    raws = crud.list_dictionary_entries(
+        category=category,
+        limit=limit,
+        is_random=is_random
+    )
 
-    table = Table(title="Words", show_lines=True)
+    table = Table(title="Texts", show_lines=True)
     table.add_column("ID", style="cyan")
-    table.add_column("Word")
+    table.add_column("Text")
     table.add_column("Category")
     table.add_column("Translations")
     table.add_column("Verb", style="magenta")
@@ -98,19 +106,19 @@ def list():
     table.add_column("vosotros", style="magenta")
     table.add_column("ellos_ellas", style="magenta")
 
-    for w in rows:
+    for data in raws:
         table.add_row(
-            str(w.id),
-            w.word,
-            w.category,
-            ",".join(t.translation for t in w.translations),
-            "Is verb" if w.verb else "",
-            w.verb.yo if w.verb else "",
-            w.verb.tu if w.verb else "",
-            w.verb.ella_el if w.verb else "",
-            w.verb.nosotros if w.verb else "",
-            w.verb.vosotros if w.verb else "",
-            w.verb.ellos_ellas if w.verb else ""
+            str(data.id),
+            data.text,
+            data.category,
+            ",".join(t.translation for t in data.translations),
+            "Is verb" if data.verb else "",
+            data.verb.yo if data.verb else "",
+            data.verb.tu if data.verb else "",
+            data.verb.ella_el if data.verb else "",
+            data.verb.nosotros if data.verb else "",
+            data.verb.vosotros if data.verb else "",
+            data.verb.ellos_ellas if data.verb else ""
         )
 
     console.print(table)
@@ -118,7 +126,7 @@ def list():
 @app.command()
 def list_verbs():
     """List all verbs in the database along with their conjugations."""
-    rows = crud.list_verbs()
+    raws = crud.list_verbs()
 
     table = Table(title="Verbs", show_lines=True)
     table.add_column("Verb")
@@ -129,9 +137,9 @@ def list_verbs():
     table.add_column("vosotros")
     table.add_column("ellos_ellas")
 
-    for v in rows:
+    for v in raws:
         table.add_row(
-            v.word.word,
+            v.dictionary.text,
             v.yo, v.tu, v.ella_el, v.nosotros, v.vosotros, v.ellos_ellas
         )
 

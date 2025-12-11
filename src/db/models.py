@@ -10,59 +10,36 @@ from sqlalchemy import (
     String,
     UniqueConstraint,
 )
-from sqlalchemy.orm import object_session, relationship
+from sqlalchemy.orm import relationship
 
-from src.enums import CategoryEnum, QuizContentTypeEnum, TopicEnum
+from src.enums import CategoryEnum
 
 from .base import Base
 
-
-class Word(Base):
-    __tablename__ = "words"
-
-    id = Column(Integer, primary_key=True, index=True)
-    word = Column(String, nullable=False, index=True)
-    category = Column(Enum(CategoryEnum), nullable=False, index=True)
-    created_at = Column(DateTime, default=datetime.now, index=True)
-
-    # Relationship to verbs
-    verb = relationship("Verb", back_populates="word", uselist=False)
-
-    # Relationship to translations
-    translations = relationship(
-        "Translation",
-        back_populates="word",
-        cascade="all, delete-orphan"
-    )
-
-    # create a constraint to ensure word uniqueness
-    __table_args__ = (
-        UniqueConstraint("word", "category"),
-    )
 
 class Translation(Base):
     __tablename__ = "translations"
 
     id = Column(Integer, primary_key=True)
-    word_id = Column(Integer, ForeignKey(
-        "words.id",
-        name="fk_translation_word_id_words"
+    dictionary_id = Column(Integer, ForeignKey(
+        "dictionary.id",
+        name="fk_translation_dictionary_id_dictionary"
         ), nullable=False)
     translation = Column(String, nullable=False)
 
     __table_args__ = (
-        UniqueConstraint("word_id", "translation"),
+        UniqueConstraint("dictionary_id", "translation"),
     )
 
-    word = relationship("Word", back_populates="translations")
+    dictionary = relationship("Dictionary", back_populates="translations")
 
 class Verb(Base):
     __tablename__ = "verbs"
 
     id = Column(Integer, primary_key=True)
-    word_id = Column(Integer, ForeignKey(
-        "words.id",
-        name="fk_verb_word_id_words"
+    dictionary_id = Column(Integer, ForeignKey(
+        "dictionary.id",
+        name="fk_verb_dictionary_id_dictionary"
     ), nullable=False, unique=True)
     yo = Column(String)
     tu = Column(String)
@@ -71,19 +48,29 @@ class Verb(Base):
     vosotros = Column(String)
     ellos_ellas = Column(String)
 
-    word = relationship("Word", back_populates="verb")
+    dictionary = relationship("Dictionary", back_populates="verb")
 
-class Sentence(Base):
-    __tablename__ = "sentences"
+
+class Dictionary(Base):
+    __tablename__ = "dictionary"
 
     id = Column(Integer, primary_key=True)
-    spanish = Column(String, nullable=False)
-    english = Column(String, nullable=False)
-    topic = Column(Enum(TopicEnum), nullable=False, index=True)
-    created_at = Column(DateTime, default=datetime.now, index=True)
+    text = Column(String, nullable=False, index=True)
+    category = Column(Enum(CategoryEnum), nullable=False, index=True)
 
+    created_at = Column(DateTime, default=datetime.now, index=True)
+    # Relationship to verbs
+    verb = relationship("Verb", back_populates="dictionary", uselist=False)
+    # Relationship to translations
+    translations = relationship(
+        "Translation",
+        back_populates="dictionary",
+        cascade="all, delete-orphan"
+    )
+
+    # create constraints to ensure word uniqueness
     __table_args__ = (
-        UniqueConstraint("spanish", "english"),
+        UniqueConstraint("text", "category"),
     )
 
 class QuizSession(Base):
@@ -102,13 +89,14 @@ class QuizAttempt(Base):
     __tablename__ = "quiz_attempts"
 
     id = Column(Integer, primary_key=True)
-    content_type = Column(
-        Enum(QuizContentTypeEnum),
-        nullable=False,
-        index=True
-    )
-    content_id = Column(Integer, nullable=False, index=True)
 
+    # foreign key to dictionary table
+    dictionary_id = Column(Integer, ForeignKey(
+        "dictionary.id",
+        name="fk_quizattempt_dictionary_id_dictionary"
+    ), nullable=False)
+    answer = Column(String, nullable=False)
+    # whether the answer was correct or not, for statistics
     answered_correctly = Column(Boolean, nullable=False, index=True)
     answered_at = Column(DateTime, default=datetime.now, index=True)
     session_id = Column(Integer, ForeignKey(
@@ -117,26 +105,3 @@ class QuizAttempt(Base):
     ), nullable=False)
 
     session = relationship("QuizSession", back_populates="attempts")
-
-    @property
-    def content(self):
-        """
-        Return the content object,Word or Sentence based on content_type and content_id.
-        """
-        if self.content_type == QuizContentTypeEnum.WORD:
-            return object_session(self).query(Word).get(self.content_id)
-        elif self.content_type == QuizContentTypeEnum.SENTENCE:
-            return object_session(self).query(Sentence).get(self.content_id)
-        return None
-
-    @property
-    def is_word(self) -> bool:
-        if self.content_type == QuizContentTypeEnum.WORD:
-            return True
-        return False
-
-    @property
-    def is_sentence(self) -> bool:
-        if self.content_type == QuizContentTypeEnum.SENTENCE:
-            return True
-        return False

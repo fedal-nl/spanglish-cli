@@ -5,9 +5,9 @@ from rich.progress import Progress
 
 from src.db import crud
 from src.dictionary.commands.quiz.factory import convert_dictionary_to_quiz_item
+from src.dictionary.commands.quiz.questions import ask_question
 from src.enums import CategoryEnum, LanguageEnum
 from src.progressbars.quiz import quiz_progress
-from src.dictionary.commands.quiz.scores import get_score
 
 app = typer.Typer(
     add_completion=False,
@@ -70,59 +70,11 @@ def start():
             # ===============================
             progress.stop()
             answered_correctly = True
-            question_started = True
             answer = ""
-            while answered_correctly and question_started:
-                console.print("[yellow]Take your time to think...[/yellow]")
-                # If the selected language is English, the question will be shown in
-                # English
-                # ----- SHOW HINT IF Spanish -----
-                if language == LanguageEnum.ENGLISH:
-                    question = item.question
-                    console.print(f"\n[bold blue]Translate to Spanish:[/] {question}")
 
-                    answer = typer.prompt("Enter the translation").strip().lower()
-                    answered_correctly = get_score(answer, item.answer)
-                else:
-                    # ----- ASK THE QUESTION -----
-                    console.print(
-                        f"\n[bold blue]Word:[/] {item.question} ({item.category})"
-                    )
-                    answer = typer.prompt("Enter the translation").strip().lower()
-                    answered_correctly = get_score(answer, item.answer)
-                # ----- SHOW VERB CONJUGATIONS -----
-                # TODO: Refactor this into a separate function
-                if item.conjugation:
-                    console.print("[bold blue]Now conjugate the verb:[/bold blue]")
+            console.print("[yellow]Take your time to think...[/yellow]")
 
-                    user_yo = typer.prompt("yo").strip().capitalize()
-                    answered_correctly = get_score(user_yo, item.conjugation["yo"])
-
-                    user_tu = typer.prompt("tu").strip().capitalize()
-                    answered_correctly = get_score(user_tu, item.conjugation["tú"])
-
-                    user_ella_el = typer.prompt("ella/el").strip().capitalize()
-                    answered_correctly = get_score(
-                        user_ella_el, item.conjugation["él/ella"]
-                    )
-
-                    user_nosotros = typer.prompt("nosotros").strip().capitalize()
-                    answered_correctly = get_score(
-                        user_nosotros, item.conjugation["nosotros"]
-                    )
-
-                    user_vosotros = typer.prompt("vosotros").strip().capitalize()
-                    answered_correctly = get_score(
-                        user_vosotros, item.conjugation["vosotros"]
-                    )
-
-                    user_ellos_ellas = typer.prompt("ellos_ellas").strip().capitalize()
-                    answered_correctly = get_score(
-                        user_ellos_ellas, item.conjugation["ellos/ellas"]
-                    )
-
-                question_started = False
-
+            answer, answered_correctly = ask_question(item, language)
             # ===============================
             #    >>> RESUME PROGRESS <<<
             # ===============================

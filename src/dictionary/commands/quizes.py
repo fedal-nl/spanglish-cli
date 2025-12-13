@@ -1,4 +1,4 @@
-import typer
+from prompt_toolkit import prompt
 from prompt_toolkit.shortcuts import choice
 from rich.console import Console
 from rich.progress import Progress
@@ -8,14 +8,10 @@ from src.dictionary.commands.quiz.factory import convert_dictionary_to_quiz_item
 from src.dictionary.commands.quiz.questions import ask_question
 from src.enums import CategoryEnum, LanguageEnum
 from src.progressbars.quiz import quiz_progress
+from src.utils import BOOLEAN_CHOICES
 
-app = typer.Typer(
-    add_completion=False,
-    help="🎯 Quiz commands: start quizzes and view performance."
-)
 console = Console()
 
-@app.command()
 def start():
     """Start a quiz session..."""
 
@@ -32,8 +28,8 @@ def start():
         default=LanguageEnum.ENGLISH
     )
 
-    limit = typer.prompt("How many records ?", default=10, type=int)
-    is_random = typer.confirm("Randomize selection ?", default=True)
+    limit = prompt("How many records ? ", default="10")
+    is_random = prompt("Randomize selection [y/N]?", default="y").strip().lower() in ("y", "yes")
 
     quiz_session = crud.create_quiz_session()
     console.print(f"[green]Quiz session started with ID:[/] {quiz_session.id}")
@@ -41,8 +37,8 @@ def start():
     # ---------- LOAD QUIZ ITEMS ----------
     rows = crud.list_dictionary_entries(
         category=category,
-        limit=limit,
-        is_random=is_random
+        limit=int(limit),
+        is_random=BOOLEAN_CHOICES.get(is_random, False)
     )
     # Convert to quiz items
     quiz_items = [convert_dictionary_to_quiz_item(w, language) for w in rows]

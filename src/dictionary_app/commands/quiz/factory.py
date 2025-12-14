@@ -1,6 +1,6 @@
 """Responsable for converting DB models to Quiz models."""
 from src.db.models import Dictionary
-from src.dictionary.commands.quiz.models import QuizItem
+from src.dictionary_app.commands.quiz.models import QuizItem
 from src.enums import LanguageEnum
 
 

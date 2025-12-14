@@ -1,21 +1,18 @@
 import questionary
-import typer
+from prompt_toolkit import prompt
 from prompt_toolkit.shortcuts import choice
 from rich.console import Console
 from rich.table import Table
 
 from src.db import crud
 from src.enums import CategoryEnum
+from src.utils import BOOLEAN_CHOICES
 
-app = typer.Typer(
-    add_completion=False,
-    help="📝 Dictionary management commands: add, list words, sentences and verbs."
-)
 console = Console()
 
 
-@app.command()
 def add(interactive: bool = True):
+
     """Add a new text to the database along with its translations.
     If the word is a verb, also add its conjugations.
     """
@@ -25,14 +22,16 @@ def add(interactive: bool = True):
             "Select a category",
             choices=CategoryEnum
         ).ask()
-        text = typer.prompt("Enter the Spanish text").capitalize()
+        text = prompt("Enter the Spanish text: ").capitalize()
         translations = []
         while True:
-            t = typer.prompt("Enter a translation").strip().lower()
+            t = prompt("Enter a translation: ").strip().lower()
             translations.append(t)
 
-            more = typer.confirm("Add another translation?", default=False)
-            if not more:
+            more = prompt(
+                "Add another translation [y/N]? ",
+                default="N").strip().lower() in ("y", "yes")
+            if not more or more not in ("y", "yes"):
                 break
 
         added_text = crud.add_text_to_dictionary(
@@ -46,12 +45,12 @@ def add(interactive: bool = True):
 
         if category == CategoryEnum.VERB:
             text_id = added_text.id
-            yo = typer.prompt("Enter the verb for yo").strip().capitalize()
-            tu = typer.prompt("Enter the verb for tu").strip().capitalize()
-            ella_el = typer.prompt("Enter the verb for ella_el").strip().capitalize()
-            nosotros = typer.prompt("Enter the verb for nosotros").strip().capitalize()
-            vosotros = typer.prompt("Enter the verb for vosotros").strip().capitalize()
-            ellos_ellas = typer.prompt("Enter the verb for ellos_ellas").strip().capitalize()
+            yo = prompt("Enter the verb for yo: ").strip().capitalize()
+            tu = prompt("Enter the verb for tu: ").strip().capitalize()
+            ella_el = prompt("Enter the verb for ella_el: ").strip().capitalize()
+            nosotros = prompt("Enter the verb for nosotros: ").strip().capitalize()
+            vosotros = prompt("Enter the verb for vosotros: ").strip().capitalize()
+            ellos_ellas = prompt("Enter the verb for ellos_ellas: ").strip().capitalize()
 
             add_verb(
                 text_id=text_id,
@@ -63,8 +62,10 @@ def add(interactive: bool = True):
                 ellos_ellas=ellos_ellas
             )
 
-        more = typer.confirm("Add another text?", default=True)
-        if not more:
+        more = prompt(
+            "Add another text [y/N]? ",
+            default="y").strip().lower() in ("y", "yes")
+        if not more or more not in ("y", "yes"):
             break
 
 
@@ -73,7 +74,7 @@ def add_verb(text_id: int, yo: str, tu: str, ella_el: str,
     crud.create_verb(text_id, yo, tu, ella_el, nosotros, vosotros, ellos_ellas)
     console.print("[green]Verb added.[/green]")
 
-@app.command()
+
 def list():
     """List all texts in the database. Optionally filter by category,
     limit the number of records, and randomize the selection.
@@ -84,13 +85,16 @@ def list():
         default="All"
     )
 
-    limit = typer.prompt("How many records ?", default=10, type=int)
-    is_random = typer.confirm("Random words ?", default=False)
+    limit = prompt("How many records ? ", default="10")
+
+    is_random = prompt(
+        "Random words [Y/N]? ",
+        default="N").strip().lower() in ("y", "yes")
 
     raws = crud.list_dictionary_entries(
         category=category,
-        limit=limit,
-        is_random=is_random
+        limit=int(limit),
+        is_random=BOOLEAN_CHOICES.get(is_random, False)
     )
 
     table = Table(title="Texts", show_lines=True)
@@ -123,7 +127,7 @@ def list():
 
     console.print(table)
 
-@app.command()
+
 def list_verbs():
     """List all verbs in the database along with their conjugations."""
     raws = crud.list_verbs()

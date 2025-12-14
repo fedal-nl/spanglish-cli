@@ -4,8 +4,8 @@ from rich.console import Console
 from rich.progress import Progress
 
 from src.db import crud
-from src.dictionary.commands.quiz.factory import convert_dictionary_to_quiz_item
-from src.dictionary.commands.quiz.questions import ask_question
+from src.dictionary_app.commands.quiz.factory import convert_dictionary_to_quiz_item
+from src.dictionary_app.commands.quiz.questions import ask_question
 from src.enums import CategoryEnum, LanguageEnum
 from src.progressbars.quiz import quiz_progress
 from src.utils import BOOLEAN_CHOICES

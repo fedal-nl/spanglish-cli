@@ -56,7 +56,11 @@ class Dictionary(Base):
 
     id = Column(Integer, primary_key=True)
     text = Column(String, nullable=False, index=True)
-    category = Column(Enum(CategoryEnum), nullable=False, index=True)
+    category = Column(
+        Enum(
+            CategoryEnum, name="mergedcategory", native_enum=True, create_type=False
+        ), nullable=False, index=True
+    )
 
     created_at = Column(DateTime, default=datetime.now, index=True)
     # Relationship to verbs

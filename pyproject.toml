@@ -1,11 +1,12 @@
 [project]
 name = "spanglishtemp"
-version = "1.0.0"
+version = "1.1.1"
 description = "A CLI tool to help you learn Spanish vocabulary effectively."
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
     "alembic>=1.17.2",
+    "bump2version>=1.0.1",
     "dotenv>=0.9.9",
     "prompt-toolkit>=3.0.52",
     "psycopg>=3.2.13",

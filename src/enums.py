@@ -18,6 +18,7 @@ class CategoryEnum(str, Enum):
     WEATHER = "Weather"
     SONGS = "Songs"
     FOOD = "Food"
+    PROFESSIONS = "Professions"
 
 class LanguageEnum(str, Enum):
     SPANISH = "Spanish"

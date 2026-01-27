@@ -11,7 +11,7 @@ from src.utils import BOOLEAN_CHOICES
 console = Console()
 
 
-def add(interactive: bool = True):
+def add_vocabulary(interactive: bool = True):
 
     """Add a new text to the database along with its translations.
     If the word is a verb, also add its conjugations.
@@ -20,10 +20,11 @@ def add(interactive: bool = True):
 
         category = questionary.select(
             "Select a category",
-            choices=CategoryEnum
+            choices=[c.value for c in CategoryEnum]
         ).ask()
         text = prompt("Enter the Spanish text: ").capitalize()
         translations = []
+        # Keep asking for translations until the user is done
         while True:
             t = prompt("Enter a translation: ").strip().lower()
             translations.append(t)
@@ -31,7 +32,8 @@ def add(interactive: bool = True):
             more = prompt(
                 "Add another translation [y/N]? ",
                 default="N").strip().lower() in ("y", "yes")
-            if not more or more not in ("y", "yes"):
+            print(f"Selected more: {more}")
+            if not more:
                 break
 
         added_text = crud.add_text_to_dictionary(
@@ -41,7 +43,7 @@ def add(interactive: bool = True):
         )
         translation = ",".join(t for t in translations)
         console.print(f"[green]Added:[/] {added_text.text} ({added_text.category}) -> \
-                      {translation}")
+                    {translation}")
 
         if category == CategoryEnum.VERB:
             text_id = added_text.id
@@ -62,10 +64,11 @@ def add(interactive: bool = True):
                 ellos_ellas=ellos_ellas
             )
 
+
         more = prompt(
             "Add another text [y/N]? ",
             default="y").strip().lower() in ("y", "yes")
-        if not more or more not in ("y", "yes"):
+        if not more:
             break
 
 

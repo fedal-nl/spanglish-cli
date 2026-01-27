@@ -10,7 +10,7 @@ from rich.text import Text
 
 # Import your command functions directly
 from src.dictionary_app.commands.quizes import start
-from src.dictionary_app.commands.vocabulary import add
+from src.dictionary_app.commands.vocabulary import add_vocabulary
 from src.dictionary_app.commands.vocabulary import list as list_vocabulary
 
 console = Console()
@@ -65,9 +65,9 @@ def main_menu():
         selected_choice = choice(
             message="Select an option:",
             options=[
-                ("1", "Start Quiz"),
-                ("2", "Add Vocabulary"),
-                ("3", "List Vocabulary"),
+                ("1", "Add Vocabulary"),
+                ("2", "List Vocabulary"),
+                ("3", "Start Quiz"),
                 ("4", "Exit")
             ],
             default="1",
@@ -75,11 +75,11 @@ def main_menu():
         )
 
         if selected_choice == "1":
-            start()
+            add_vocabulary()
         elif selected_choice == "2":
-            add()
-        elif selected_choice == "3":
             list_vocabulary()
+        elif selected_choice == "3":
+            start()
         elif selected_choice == "4":
             console.print("\n[bold red]Exiting Spanglish CLI. Goodbye![/bold red]\n")
             sys.exit(0) # Exit the script cleanly

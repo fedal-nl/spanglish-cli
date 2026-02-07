@@ -32,7 +32,7 @@ def add_text_to_dictionary(
 
 def list_dictionary_entries(
         category: CategoryEnum|None=None,
-        limit: int=None,
+        limit: int|None=None,
         is_random: bool=False
     ):
     with get_session() as session:

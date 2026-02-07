@@ -16,11 +16,12 @@ def start():
     """Start a quiz session..."""
 
     # ---------- INITIAL USER PROMPTS ----------
-    category = choice(
+    category_choice = choice(
         message="Select a category ?",
         options=[(None, "All")] + [(c, c.name) for c in CategoryEnum],
         default="All"
     )
+    category = category_choice if isinstance(category_choice, CategoryEnum) else None
 
     language = choice(
         message="Select a language ?",
@@ -29,16 +30,17 @@ def start():
     )
 
     limit = prompt("How many records ? ", default="10")
-    is_random = prompt("Randomize selection [y/N]?", default="y").strip().lower() in ("y", "yes")
+    is_random_input = prompt("Randomize selection [y/N]?", default="y").strip().lower()
 
     quiz_session = crud.create_quiz_session()
-    console.print(f"[green]Quiz session started with ID:[/] {quiz_session.id}")
+    session_id = quiz_session.id
+    console.print(f"[green]Quiz session started with ID:[/] {session_id}")
 
     # ---------- LOAD QUIZ ITEMS ----------
     rows = crud.list_dictionary_entries(
         category=category,
         limit=int(limit),
-        is_random=BOOLEAN_CHOICES.get(is_random, False)
+        is_random=BOOLEAN_CHOICES.get(is_random_input, False)
     )
     # Convert to quiz items
     quiz_items = [convert_dictionary_to_quiz_item(w, language) for w in rows]
@@ -78,7 +80,7 @@ def start():
 
             # ----- SAVE ATTEMPT -----
             crud.create_quiz_attempt(
-                session_id=quiz_session.id,
+                session_id=session_id,
                 dictionary_id=item.text_id,
                 answer=answer,
                 answered_correctly=answered_correctly,

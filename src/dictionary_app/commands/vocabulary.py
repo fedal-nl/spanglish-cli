@@ -88,16 +88,27 @@ def list():
         default="All"
     )
 
+    # Convert string to CategoryEnum if necessary
+    if isinstance(category, str) and category != "All":
+        try:
+            category = CategoryEnum[category]
+        except KeyError:
+            category = None
+    elif category == "All":
+        category = None
+
     limit = prompt("How many records ? ", default="10")
 
-    is_random = prompt(
+    is_random_input = prompt(
         "Random words [Y/N]? ",
-        default="N").strip().lower() in ("y", "yes")
+        default="N").strip().lower()
+
+    is_random = BOOLEAN_CHOICES.get(is_random_input, False)
 
     raws = crud.list_dictionary_entries(
         category=category,
         limit=int(limit),
-        is_random=BOOLEAN_CHOICES.get(is_random, False)
+        is_random=is_random
     )
 
     table = Table(title="Texts", show_lines=True)

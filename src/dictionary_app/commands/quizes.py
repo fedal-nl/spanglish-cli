@@ -90,7 +90,10 @@ def start():
                 console.print("[green]Correct![/green]")
                 correct_answers += 1
             else:
-                console.print("[red]Incorrect![/red]")
+                console.print(
+                    f"[red]Incorrect! The correct answer was: "
+                    f"{item.answer}[/red]"
+                )
                 incorrect_answers += 1
 
     console.print("\n[bold green]Quiz session ended.[/bold green]")

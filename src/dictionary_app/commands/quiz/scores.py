@@ -12,4 +12,9 @@ def get_score(question: str, answer: str) -> bool:
     Returns:
         bool: True if the answer is correct, False otherwise.
     """
-    return question.strip().lower() == answer.strip().lower()
+    # Normalize both question and answer by stripping whitespace and converting to
+    # lowercase for case-insensitive comparison. Also remove the . from the end
+    # of the question if it exists, since some questions might end with a period.
+    question = question.strip().lower().rstrip(".")
+    answer = answer.strip().lower().rstrip(".")
+    return question == answer

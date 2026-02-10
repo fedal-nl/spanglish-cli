@@ -17,4 +17,4 @@ def get_score(question: str, answer: str) -> bool:
     # of the question if it exists, since some questions might end with a period.
     question = question.strip().lower().rstrip(".")
     answer = answer.strip().lower().rstrip(".")
-    return question == answer
+    return answer in question

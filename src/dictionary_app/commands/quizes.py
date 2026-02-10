@@ -90,11 +90,9 @@ def start():
                 console.print("[green]Correct![/green]")
                 correct_answers += 1
             else:
-                console.print(
-                    f"[red]Incorrect! The correct answer was: "
-                    f"{item.answer}[/red]"
-                )
+                console.print("[red]Incorrect![/red]")
                 incorrect_answers += 1
+            console.print(f"The correct answer is: [yellow]{item.answer}[/yellow]")
 
     console.print("\n[bold green]Quiz session ended.[/bold green]")
     console.print(f"Correct answers: {correct_answers} out of {len(rows)}")

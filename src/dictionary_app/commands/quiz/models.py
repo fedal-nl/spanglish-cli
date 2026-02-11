@@ -8,5 +8,5 @@ class QuizItem:
     text_id: int
     question: str
     answer: str
-    conjugation: dict[str, str] = None  # Only for verbs
+    conjugation: dict[str, str] | None = None  # Only for verbs
     category: CategoryEnum | None = None

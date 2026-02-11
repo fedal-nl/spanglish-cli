@@ -43,7 +43,6 @@ def list_dictionary_entries(
         )
 
         if category:
-            print(f"Applying filter for category: {category}")
             query = query.filter(Dictionary.category == category)
 
         query = query.order_by(func.random() if is_random else Dictionary.text)

@@ -21,6 +21,7 @@ def start():
         options=[(None, "All")] + [(c, c.name) for c in CategoryEnum],
         default="All"
     )
+    # Convert string to CategoryEnum if necessary
     category = category_choice if isinstance(category_choice, CategoryEnum) else None
 
     language = choice(

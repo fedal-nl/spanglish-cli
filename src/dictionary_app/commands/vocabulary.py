@@ -82,20 +82,14 @@ def list():
     """List all texts in the database. Optionally filter by category,
     limit the number of records, and randomize the selection.
     """
-    category = choice(
+    category_choice = choice(
         message="Select a category ?",
         options=[(None, "All")] + [(c, c.name) for c in CategoryEnum],
         default="All"
     )
 
     # Convert string to CategoryEnum if necessary
-    if isinstance(category, str) and category != "All":
-        try:
-            category = CategoryEnum[category]
-        except KeyError:
-            category = None
-    elif category == "All":
-        category = None
+    category = category_choice if isinstance(category_choice, CategoryEnum) else None
 
     limit = prompt("How many records ? ", default="10")
 
@@ -104,7 +98,7 @@ def list():
         default="N").strip().lower()
 
     is_random = BOOLEAN_CHOICES.get(is_random_input, False)
-
+    print(f"Selected category: {category}, Random: {is_random}")
     raws = crud.list_dictionary_entries(
         category=category,
         limit=int(limit),

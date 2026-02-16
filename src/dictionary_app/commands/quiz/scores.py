@@ -15,6 +15,9 @@ def get_score(question: str, answer: str) -> bool:
     # Normalize both question and answer by stripping whitespace and converting to
     # lowercase for case-insensitive comparison. Also remove the . from the end
     # of the question if it exists, since some questions might end with a period.
+    if answer.strip() == "":
+        return False
     question = question.strip().lower().rstrip(".")
     answer = answer.strip().lower().rstrip(".")
+
     return answer in question

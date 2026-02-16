@@ -22,7 +22,7 @@ def get_formatted_question(item: QuizItem, language: LanguageEnum) -> HTML:
     """
     question_text = (
         f"What is the translation of the {language.name} phrase/word "
-        f"<b>{item.question}</b> ?"
+        f"<b>{item.question}</b> ? "
     )
     return HTML(question_text)
 

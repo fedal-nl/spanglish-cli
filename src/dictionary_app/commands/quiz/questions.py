@@ -10,6 +10,23 @@ from .models import QuizItem
 from .scores import get_score
 
 
+def get_formatted_question(item: QuizItem, language: LanguageEnum) -> HTML:
+    """Get a formatted question for the quiz item based on the language.
+
+    Args:
+        item (QuizItem): The quiz item containing question and answer.
+        language (LanguageEnum): The language of the quiz.
+
+    Returns:
+        HTML: A formatted question to be displayed to the user.
+    """
+    question_text = (
+        f"What is the translation of the {language.name} phrase/word "
+        f"<b>{item.question}</b> ?"
+    )
+    return HTML(question_text)
+
+
 def ask_question(item: QuizItem, language: LanguageEnum) -> tuple[str, bool]:
     """Ask a quiz question to the user and get their answer.
 
@@ -21,14 +38,7 @@ def ask_question(item: QuizItem, language: LanguageEnum) -> tuple[str, bool]:
         tuple: A tuple containing the user's answer and whether it was correct.
     """
 
-    if language == LanguageEnum.SPANISH:
-        prompt_text = HTML(
-            f"What is the translation of {item.question} ? "
-        )
-    else:
-        prompt_text = HTML(
-            f"What is the translation of {item.question} in {language.name} ? "
-        )
+    prompt_text = get_formatted_question(item, language)
 
     user_answer = prompt(prompt_text)
 

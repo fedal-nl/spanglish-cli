@@ -1,158 +1,240 @@
+"""Interactive vocabulary CRUD commands backed by the Spanglish HTTP API."""
+
 import questionary
 from prompt_toolkit import prompt
-from prompt_toolkit.shortcuts import choice
 from rich.console import Console
 from rich.table import Table
 
-from src.db import crud
-from src.enums import CategoryEnum
-from src.utils import BOOLEAN_CHOICES
+from src.api_client import SpanglishAPIClient, SpanglishAPIError
+from src.api_models import QuizOptions, Vocabulary
+from src.utils import normalize_optional_id
 
 console = Console()
+PRONOUNS = ("yo", "tú", "él/ella", "nosotros", "vosotros", "ellos/ellas")
 
 
-def add_vocabulary(interactive: bool = True):
-
-    """Add a new text to the database along with its translations.
-    If the word is a verb, also add its conjugations.
-    """
-    while interactive:
-
-        category = questionary.select(
-            "Select a category",
-            choices=[c.value for c in CategoryEnum]
-        ).ask()
-        text = prompt("Enter the Spanish text: ").capitalize()
-        translations = []
-        # Keep asking for translations until the user is done
-        while True:
-            t = prompt("Enter a translation: ").strip().lower()
-            translations.append(t)
-
-            more = prompt(
-                "Add another translation [y/N]? ",
-                default="N").strip().lower() in ("y", "yes")
-            print(f"Selected more: {more}")
-            if not more:
-                break
-
-        added_text = crud.add_text_to_dictionary(
-            text=text,
-            category=category,
-            translations=translations
-        )
-        translation = ",".join(t for t in translations)
-        console.print(f"[green]Added:[/] {added_text.text} ({added_text.category}) -> \
-                    {translation}")
-
-        if category == CategoryEnum.VERB:
-            text_id = added_text.id
-            yo = prompt("Enter the verb for yo: ").strip().capitalize()
-            tu = prompt("Enter the verb for tu: ").strip().capitalize()
-            ella_el = prompt("Enter the verb for ella_el: ").strip().capitalize()
-            nosotros = prompt("Enter the verb for nosotros: ").strip().capitalize()
-            vosotros = prompt("Enter the verb for vosotros: ").strip().capitalize()
-            ellos_ellas = prompt("Enter the verb for ellos_ellas: ").strip().capitalize()
-
-            add_verb(
-                text_id=text_id,
-                yo=yo,
-                tu=tu,
-                ella_el=ella_el,
-                nosotros=nosotros,
-                vosotros=vosotros,
-                ellos_ellas=ellos_ellas
-            )
+def _select_id(message: str, values, default: int | None = None) -> int:
+    """Display named API resources and return the selected identifier."""
+    choices = [questionary.Choice(item.name, value=item.id) for item in values]
+    return questionary.select(message, choices=choices, default=default).ask()
 
 
-        more = prompt(
-            "Add another text [y/N]? ",
-            default="y").strip().lower() in ("y", "yes")
-        if not more:
+def _collect_translations(target_language_id: int, current=None) -> list[dict]:
+    """Collect one or more translations for an API vocabulary payload."""
+    translations = []
+    existing = [item.translation for item in (current or [])]
+    while True:
+        default = existing.pop(0) if existing else ""
+        text = prompt("Enter a translation: ", default=default).strip()
+        if text:
+            translations.append({"language_id": target_language_id, "text": text})
+        more = prompt("Add another translation [y/N]? ", default="N").strip().lower()
+        if more not in ("y", "yes"):
             break
+    return translations
 
 
-def add_verb(text_id: int, yo: str, tu: str, ella_el: str,
-             nosotros: str, vosotros: str, ellos_ellas: str):
-    crud.create_verb(text_id, yo, tu, ella_el, nosotros, vosotros, ellos_ellas)
-    console.print("[green]Verb added.[/green]")
+def _collect_conjugations(current=None) -> list[dict]:
+    """Collect the six present indicative forms used by the original CLI."""
+    existing = {item.pronoun: item.form for item in (current or [])}
+    conjugations = []
+    for pronoun in PRONOUNS:
+        form = prompt(
+            f"Conjugate for '{pronoun}': ", default=existing.get(pronoun, "")
+        ).strip()
+        if form:
+            conjugations.append(
+                {
+                    "tense": "present",
+                    "mood": "indicative",
+                    "pronoun": pronoun,
+                    "form": form,
+                }
+            )
+    return conjugations
 
 
-def list():
-    """List all texts in the database. Optionally filter by category,
-    limit the number of records, and randomize the selection.
-    """
-    category_choice = choice(
-        message="Select a category ?",
-        options=[(None, "All")] + [(c, c.name) for c in CategoryEnum],
-        default="All"
+def _build_payload(options: QuizOptions, current: Vocabulary | None = None) -> dict:
+    """Build a create/update payload from interactive API-backed choices."""
+    spanish = next(item for item in options.languages if item.code == "es")
+    english = next(item for item in options.languages if item.code == "en")
+    category_id = _select_id(
+        "Select a category",
+        options.categories,
+        current.categories[0].id if current and current.categories else None,
     )
-
-    # Convert string to CategoryEnum if necessary
-    category = category_choice if isinstance(category_choice, CategoryEnum) else None
-
-    limit = prompt("How many records ? ", default="10")
-
-    is_random_input = prompt(
-        "Random words [Y/N]? ",
-        default="N").strip().lower()
-
-    is_random = BOOLEAN_CHOICES.get(is_random_input, False)
-    print(f"Selected category: {category}, Random: {is_random}")
-    raws = crud.list_dictionary_entries(
-        category=category,
-        limit=int(limit),
-        is_random=is_random
+    vocabulary_type_id = _select_id(
+        "Select a vocabulary type",
+        options.vocabulary_types,
+        current.vocabulary_type.id if current else None,
     )
-
-    table = Table(title="Texts", show_lines=True)
-    table.add_column("ID", style="cyan")
-    table.add_column("Text")
-    table.add_column("Category")
-    table.add_column("Translations")
-    table.add_column("Verb", style="magenta")
-    table.add_column("yo", style="magenta")
-    table.add_column("tu", style="magenta")
-    table.add_column("ella/el", style="magenta")
-    table.add_column("nosotros", style="magenta")
-    table.add_column("vosotros", style="magenta")
-    table.add_column("ellos_ellas", style="magenta")
-
-    for data in raws:
-        table.add_row(
-            str(data.id),
-            data.text,
-            data.category,
-            ",".join(t.translation for t in data.translations),
-            "Is verb" if data.verb else "",
-            data.verb.yo if data.verb else "",
-            data.verb.tu if data.verb else "",
-            data.verb.ella_el if data.verb else "",
-            data.verb.nosotros if data.verb else "",
-            data.verb.vosotros if data.verb else "",
-            data.verb.ellos_ellas if data.verb else ""
+    chapter_choices = [questionary.Choice("No chapter", value="")] + [
+        questionary.Choice(item.name, value=item.id) for item in options.chapters
+    ]
+    chapter_id = normalize_optional_id(
+        questionary.select(
+            "Select a chapter (optional)",
+            choices=chapter_choices,
+            default=current.chapter.id if current and current.chapter else "",
+        ).ask()
+    )
+    text = prompt(
+        "Enter the Spanish text: ", default=current.text if current else ""
+    ).strip()
+    translations = _collect_translations(
+        english.id, current.translations if current else None
+    )
+    category = next(item for item in options.categories if item.id == category_id)
+    conjugations = []
+    if category.name.casefold() == "verb":
+        conjugations = _collect_conjugations(
+            current.verb_conjugations if current else None
         )
+    return {
+        "text": text,
+        "language_id": spanish.id,
+        "vocabulary_type_id": vocabulary_type_id,
+        "chapter_id": chapter_id,
+        "category_ids": [category_id],
+        "translations": translations,
+        "conjugations": conjugations,
+    }
 
+
+def add_vocabulary(client: SpanglishAPIClient | None = None) -> None:
+    """Create one or more vocabulary cards through the API."""
+    owns_client = client is None
+    client = client or SpanglishAPIClient()
+    try:
+        options = client.get_quiz_options()
+        while True:
+            created = client.create_vocabulary(_build_payload(options))
+            translations = ", ".join(item.translation for item in created.translations)
+            console.print(f"[green]Added:[/] {created.text} -> {translations}")
+            more = prompt("Add another text [y/N]? ", default="N").strip().lower()
+            if more not in ("y", "yes"):
+                break
+    except (SpanglishAPIError, StopIteration) as exc:
+        console.print(f"[red]{exc}[/red]")
+    finally:
+        if owns_client:
+            client.close()
+
+
+def list_vocabulary(client: SpanglishAPIClient | None = None) -> None:
+    """List API vocabulary with optional category and page-size filters."""
+    owns_client = client is None
+    client = client or SpanglishAPIClient()
+    try:
+        options = client.get_quiz_options()
+        choices = [questionary.Choice("All", value="")] + [
+            questionary.Choice(item.name, value=item.id) for item in options.categories
+        ]
+        category_id = normalize_optional_id(
+            questionary.select("Select a category", choices=choices).ask()
+        )
+        chapter_choices = [questionary.Choice("All chapters", value="")] + [
+            questionary.Choice(item.name, value=item.id) for item in options.chapters
+        ]
+        chapter_id = normalize_optional_id(
+            questionary.select("Select a chapter", choices=chapter_choices).ask()
+        )
+        page_size = int(prompt("How many records? ", default="10"))
+        randomize = questionary.confirm("Randomize selection?", default=False).ask()
+        page = client.list_vocabulary(
+            page_size=page_size,
+            category_id=category_id,
+            chapter_id=chapter_id,
+            randomize=randomize,
+        )
+        _print_vocabulary(page.items)
+    except (SpanglishAPIError, ValueError) as exc:
+        console.print(f"[red]{exc}[/red]")
+    finally:
+        if owns_client:
+            client.close()
+
+
+def update_vocabulary(client: SpanglishAPIClient | None = None) -> None:
+    """Replace a vocabulary card selected by its API identifier."""
+    owns_client = client is None
+    client = client or SpanglishAPIClient()
+    try:
+        vocabulary_id = int(prompt("Vocabulary ID to update: "))
+        current = client.get_vocabulary(vocabulary_id)
+        updated = client.update_vocabulary(
+            vocabulary_id, _build_payload(client.get_quiz_options(), current)
+        )
+        console.print(f"[green]Updated:[/] {updated.text}")
+    except (SpanglishAPIError, ValueError) as exc:
+        console.print(f"[red]{exc}[/red]")
+    finally:
+        if owns_client:
+            client.close()
+
+
+def delete_vocabulary(client: SpanglishAPIClient | None = None) -> None:
+    """Delete a vocabulary card after explicit terminal confirmation."""
+    owns_client = client is None
+    client = client or SpanglishAPIClient()
+    try:
+        vocabulary_id = int(prompt("Vocabulary ID to delete: "))
+        vocabulary = client.get_vocabulary(vocabulary_id)
+        confirmed = questionary.confirm(
+            f"Delete '{vocabulary.text}'?", default=False
+        ).ask()
+        if confirmed:
+            client.delete_vocabulary(vocabulary_id)
+            console.print(f"[green]Deleted:[/] {vocabulary.text}")
+    except (SpanglishAPIError, ValueError) as exc:
+        console.print(f"[red]{exc}[/red]")
+    finally:
+        if owns_client:
+            client.close()
+
+
+def create_chapter(client: SpanglishAPIClient | None = None) -> None:
+    """Create a chapter that can optionally group vocabulary and quizzes."""
+    owns_client = client is None
+    client = client or SpanglishAPIClient()
+    try:
+        name = prompt("Chapter name: ").strip()
+        if not name:
+            raise ValueError("Chapter name cannot be empty")
+        chapter = client.create_chapter(name)
+        console.print(f"[green]Created chapter:[/] {chapter.name} (ID {chapter.id})")
+    except (SpanglishAPIError, ValueError) as exc:
+        console.print(f"[red]{exc}[/red]")
+    finally:
+        if owns_client:
+            client.close()
+
+
+def _print_vocabulary(items: list[Vocabulary]) -> None:
+    """Render vocabulary cards in a compact terminal table."""
+    table = Table(title="Vocabulary", show_lines=True)
+    for heading in (
+        "ID",
+        "Text",
+        "Chapter",
+        "Categories",
+        "Translations",
+        "Conjugations",
+    ):
+        table.add_column(heading)
+    for item in items:
+        table.add_row(
+            str(item.id),
+            item.text,
+            item.chapter.name if item.chapter else "—",
+            ", ".join(category.name for category in item.categories),
+            ", ".join(value.translation for value in item.translations),
+            ", ".join(
+                f"{value.pronoun}: {value.form}" for value in item.verb_conjugations
+            ),
+        )
     console.print(table)
 
 
-def list_verbs():
-    """List all verbs in the database along with their conjugations."""
-    raws = crud.list_verbs()
-
-    table = Table(title="Verbs", show_lines=True)
-    table.add_column("Verb")
-    table.add_column("yo")
-    table.add_column("tu")
-    table.add_column("ella/el")
-    table.add_column("nosotros")
-    table.add_column("vosotros")
-    table.add_column("ellos_ellas")
-
-    for v in raws:
-        table.add_row(
-            v.dictionary.text,
-            v.yo, v.tu, v.ella_el, v.nosotros, v.vosotros, v.ellos_ellas
-        )
-
-    console.print(table)
+# Preserve the original command import while exposing the clearer function name.
+list = list_vocabulary

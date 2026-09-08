@@ -10,22 +10,30 @@ from rich.text import Text
 
 # Import your command functions directly
 from src.dictionary_app.commands.quizes import start
-from src.dictionary_app.commands.vocabulary import add_vocabulary
+from src.dictionary_app.commands.vocabulary import (
+    add_vocabulary,
+    create_chapter,
+    delete_vocabulary,
+    update_vocabulary,
+)
 from src.dictionary_app.commands.vocabulary import list as list_vocabulary
 
 console = Console()
 
-style = Style.from_dict({
-    "radiolist": "bg:#000000",
-    "radiolist focused": "bg:#81a1c1 #2e3440 bold",
-    "": "bg:#000000 #ffffff",  # base background to remove grey
-})
+style = Style.from_dict(
+    {
+        "radiolist": "bg:#000000",
+        "radiolist focused": "bg:#81a1c1 #2e3440 bold",
+        "": "bg:#000000 #ffffff",  # base background to remove grey
+    }
+)
 
 
 def print_header():
     """Pretty ASCII banner for SPANGLISH."""
     # ... (header printing logic remains the same) ...
-    banner = Text(r"""
+    banner = Text(
+        r"""
    ███████╗██████╗  █████╗ ███╗   ██╗ ██████╗ ██╗     ██╗███████╗██╗.   ██╗
    ██╔════╝██╔══██╗██╔══██╗████╗  ██║██╔════╝ ██║     ██║██╔════╝██║.   ██║
    ███████╗██████╔╝███████║██╔██╗ ██║██║  ███╗██║     ██║███████╗█████████║
@@ -33,23 +41,27 @@ def print_header():
    ███████║██║     ██║  ██║██║ ╚████║╚██████╔╝███████╗██║███████║██║.   ██║
    ╚══════╝╚═╝     ╚═╝  ╚═╝╚═╝  ╚═══╝ ╚═════╝ ╚══════╝╚═╝╚══════╝╚═╝.   ╚═╝
                       📘 SPANGLISH CLI
-""", style="bold cyan")
+""",
+        style="bold cyan",
+    )
 
     console.print(Align.center(banner))
 
     console.print(
         Align.center(
             Panel.fit(
-                "[bold yellow]Spanglish — Spanish/English Vocabulary Trainer[/bold yellow]\n"
+                "[bold yellow]Spanglish — Spanish/English "
+                "Vocabulary Trainer[/bold yellow]\n"
                 "[white]Learn Spanish interactively from your terminal![/white]\n\n"
                 "• 🔤 Practice words with smart quizzes\n"
                 "• 📚 Manage your personalized vocabulary list\n"
                 "• 📈 Track progress over multiple sessions\n",
                 border_style="cyan",
-                padding=(1, 2)
+                padding=(1, 2),
             )
         )
     )
+
 
 def main_menu():
     """
@@ -58,7 +70,7 @@ def main_menu():
     # Print the header once at startup
     print_header()
 
-    while True: # Keep showing the menu until user exits
+    while True:  # Keep showing the menu until user exits
         # print("\n" + "="*50 + "\n") # Separator for clarity in loop
         console.print(Rule(style="cyan"))
 
@@ -67,11 +79,14 @@ def main_menu():
             options=[
                 ("1", "Add Vocabulary"),
                 ("2", "List Vocabulary"),
-                ("3", "Start Quiz"),
-                ("4", "Exit")
+                ("3", "Update Vocabulary"),
+                ("4", "Delete Vocabulary"),
+                ("5", "Start Quiz"),
+                ("6", "Create Chapter"),
+                ("7", "Exit"),
             ],
             default="1",
-            style=style
+            style=style,
         )
 
         if selected_choice == "1":
@@ -79,10 +94,16 @@ def main_menu():
         elif selected_choice == "2":
             list_vocabulary()
         elif selected_choice == "3":
-            start()
+            update_vocabulary()
         elif selected_choice == "4":
+            delete_vocabulary()
+        elif selected_choice == "5":
+            start()
+        elif selected_choice == "6":
+            create_chapter()
+        elif selected_choice == "7":
             console.print("\n[bold red]Exiting Spanglish CLI. Goodbye![/bold red]\n")
-            sys.exit(0) # Exit the script cleanly
+            sys.exit(0)  # Exit the script cleanly
         else:
             # Should not happen with prompt_toolkit choice, but good practice
             console.print("[bold red]Invalid selection, please try again.[/bold red]")

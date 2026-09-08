@@ -1,4 +1,4 @@
-.PHONY: start
+.PHONY: start create-account test lint patch minor major release clean help
 
 # ---------------------------------
 # Application start command
@@ -7,27 +7,17 @@ start:
 	@echo "Starting dictionary app..."
 	uv run python -m src.dictionary_app
 
+create-account:
+	@uv run python -m src.create_account
+
 # ---------------------------------
-# Alembic migration commands
+# Quality checks
 # ---------------------------------
-# To run migrations. first generate a new migration script:
-migrate:
-	uv run alembic revision --autogenerate -m "<migration_message>"
-# Then apply the migration: (Optional with envfile): ENV_FILE=.env.prod uv run alembic upgrade head
-upgrade:
-	uv run alembic upgrade head
-# To downgrade to a previous migration:
-downgrade:
-	uv run alembic downgrade <revision_id>
-# To view current revision:
-current:
-	uv run alembic current
-# To view the history of migrations:
-history:
-	uv run alembic history --verbose
-# To stamp the database with a specific revision without running migrations:
-stamp:
-	uv run alembic stamp <revision_id>
+test:
+	uv run pytest
+
+lint:
+	uv run ruff check .
 
 # ---------------------------------
 # Bump version and tag release
@@ -59,9 +49,9 @@ clean:
 help:
 	@echo "Available make commands:"
 	@echo "  make start       - Run the application"
+	@echo "  make create-account - Create an R2D2 API user account"
 	@echo "  make test        - Run tests with pytest"
-	@echo "  make migrate     - Generate Alembic migration"
-	@echo "  make upgrade     - Apply Alembic migrations"
+	@echo "  make lint        - Run Ruff"
 	@echo "  make release     - Bump patch version and tag release"
 	@echo "  make patch       - Bump patch version"
 	@echo "  make minor       - Bump minor version"

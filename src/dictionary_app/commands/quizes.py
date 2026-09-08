@@ -1,100 +1,142 @@
+"""Interactive batch quiz command backed by the Spanglish HTTP API."""
+
+from time import monotonic
+
+import questionary
 from prompt_toolkit import prompt
-from prompt_toolkit.shortcuts import choice
 from rich.console import Console
 from rich.progress import Progress
 
-from src.db import crud
-from src.dictionary_app.commands.quiz.factory import convert_dictionary_to_quiz_item
-from src.dictionary_app.commands.quiz.questions import ask_question
-from src.enums import CategoryEnum, LanguageEnum
+from src.api_client import SpanglishAPIClient, SpanglishAPIError
+from src.api_models import Attempt, QuizQuestion
 from src.progressbars.quiz import quiz_progress
-from src.utils import BOOLEAN_CHOICES
+from src.utils import normalize_optional_id, optional_id_list
 
 console = Console()
 
-def start():
-    """Start a quiz session..."""
 
-    # ---------- INITIAL USER PROMPTS ----------
-    category_choice = choice(
-        message="Select a category ?",
-        options=[(None, "All")] + [(c, c.name) for c in CategoryEnum],
-        default="All"
-    )
-    # Convert string to CategoryEnum if necessary
-    category = category_choice if isinstance(category_choice, CategoryEnum) else None
+def _matches(answer: str, accepted: list[str]) -> bool:
+    """Provide immediate local feedback using the answers supplied by the API."""
+    normalized = answer.strip().casefold().rstrip(".?!")
+    return bool(normalized) and normalized in {
+        value.strip().casefold().rstrip(".?!") for value in accepted
+    }
 
-    language = choice(
-        message="Select a language ?",
-        options=[(c, c.name) for c in LanguageEnum],
-        default=LanguageEnum.ENGLISH
-    )
 
-    limit = prompt("How many records ? ", default="10")
-    is_random_input = prompt("Randomize selection [y/N]?", default="y").strip().lower()
+def _ask_question(question: QuizQuestion) -> tuple[str | dict[str, str], bool]:
+    """Ask a translation or every form of a conjugation question."""
+    if question.type == "conjugation":
+        accepted = question.accepted_answers
+        if not isinstance(accepted, dict):
+            return {}, False
+        answers = {
+            pronoun: prompt(f"{question.prompt} for '{pronoun}': ").strip()
+            for pronoun in accepted
+        }
+        correct = all(
+            _matches(answers[key], values) for key, values in accepted.items()
+        )
+        return answers, correct
+    accepted = question.accepted_answers
+    if not isinstance(accepted, list):
+        return "", False
+    answer = prompt(f"Translate '{question.prompt}': ").strip()
+    return answer, _matches(answer, accepted)
 
-    quiz_session = crud.create_quiz_session()
-    session_id = quiz_session.id
-    console.print(f"[green]Quiz session started with ID:[/] {session_id}")
 
-    # ---------- LOAD QUIZ ITEMS ----------
-    rows = crud.list_dictionary_entries(
-        category=category,
-        limit=int(limit),
-        is_random=BOOLEAN_CHOICES.get(is_random_input, False)
-    )
-    # Convert to quiz items
-    quiz_items = [convert_dictionary_to_quiz_item(w, language) for w in rows]
+def start(client: SpanglishAPIClient | None = None) -> None:
+    """Fetch a complete quiz, run it locally, and submit all answers once."""
+    owns_client = client is None
+    client = client or SpanglishAPIClient()
+    try:
+        options = client.get_quiz_options()
+        category_choices = [questionary.Choice("All", value="")] + [
+            questionary.Choice(item.name, value=item.id) for item in options.categories
+        ]
+        category_id = normalize_optional_id(
+            questionary.select("Select a category", choices=category_choices).ask()
+        )
+        chapter_choices = [questionary.Choice("All chapters", value="")] + [
+            questionary.Choice(item.name, value=item.id) for item in options.chapters
+        ]
+        chapter_id = normalize_optional_id(
+            questionary.select("Select a chapter", choices=chapter_choices).ask()
+        )
+        source_id = questionary.select(
+            "Translate from",
+            choices=[
+                questionary.Choice(item.name, value=item.id)
+                for item in options.languages
+            ],
+        ).ask()
+        target_languages = [item for item in options.languages if item.id != source_id]
+        target_id = questionary.select(
+            "Translate to",
+            choices=[
+                questionary.Choice(item.name, value=item.id)
+                for item in target_languages
+            ],
+        ).ask()
+        count = int(
+            prompt("How many questions? ", default=str(options.default_question_count))
+        )
+        randomize = questionary.confirm("Randomize selection?", default=True).ask()
+        quiz = client.create_quiz(
+            {
+                "source_language_id": source_id,
+                "target_language_id": target_id,
+                "category_ids": optional_id_list(category_id),
+                "chapter_ids": optional_id_list(chapter_id),
+                "question_count": count,
+                "selection_mode": "random" if randomize else "sequential",
+                "question_types": ["translation", "conjugation"],
+                "client_type": "cli",
+            }
+        )
+        for warning in quiz.warnings:
+            console.print(f"[yellow]{warning}[/yellow]")
+        attempts = _run_questions(quiz.questions)
+        result = client.submit_quiz(
+            quiz.quiz_id,
+            {
+                "attempts": [item.model_dump(mode="json") for item in attempts],
+                "client_type": "cli",
+            },
+        )
+        console.print("\n[bold green]Quiz completed.[/bold green]")
+        console.print(
+            f"Score: {result.score.correct}/{result.score.total} "
+            f"({result.score.percentage:.2f}%)"
+        )
+        console.print(f"Advice: {result.advice.get('summary', 'Keep practising.')}")
+    except (SpanglishAPIError, ValueError) as exc:
+        console.print(f"[red]{exc}[/red]")
+    finally:
+        if owns_client:
+            client.close()
 
-    correct_answers = 0
-    incorrect_answers = 0
 
-    # ---------- PROGRESS BAR ----------
+def _run_questions(questions: list[QuizQuestion]) -> list[Attempt]:
+    """Collect all local answers while preserving response time metadata."""
+    attempts = []
     with Progress(*quiz_progress, console=console) as progress:
-
-        task = progress.add_task("Quiz Progress", total=len(quiz_items))
-
-        for index, item in enumerate(quiz_items, 1):
-
-            # Advance progress bar
-            progress.update(task, advance=1)
-
-            progress.update(
-                task,
-                description=f"Question {index} of {len(quiz_items)}"
-            )
-
-            # ===============================
-            #     >>> PAUSE PROGRESS <<<
-            # ===============================
+        task = progress.add_task("Quiz Progress", total=len(questions))
+        for index, question in enumerate(questions, 1):
             progress.stop()
-            answered_correctly = True
-            answer = ""
-
-            console.print("[yellow]Take your time to think...[/yellow]")
-
-            answer, answered_correctly = ask_question(item, language)
-            # ===============================
-            #    >>> RESUME PROGRESS <<<
-            # ===============================
-            progress.start()
-
-            # ----- SAVE ATTEMPT -----
-            crud.create_quiz_attempt(
-                session_id=session_id,
-                dictionary_id=item.text_id,
-                answer=answer,
-                answered_correctly=answered_correctly,
+            console.print(f"[yellow]Question {index} of {len(questions)}[/yellow]")
+            started = monotonic()
+            answer, correct = _ask_question(question)
+            response_time_ms = round((monotonic() - started) * 1000)
+            console.print(
+                "[green]Correct![/green]" if correct else "[red]Incorrect![/red]"
             )
-
-            if answered_correctly:
-                console.print("[green]Correct![/green]")
-                correct_answers += 1
-            else:
-                console.print("[red]Incorrect![/red]")
-                incorrect_answers += 1
-            console.print(f"The correct answer is: [yellow]{item.answer}[/yellow]")
-
-    console.print("\n[bold green]Quiz session ended.[/bold green]")
-    console.print(f"Correct answers: {correct_answers} out of {len(rows)}")
-    console.print(f"Incorrect answers: {incorrect_answers} out of {len(rows)}")
+            progress.start()
+            progress.update(task, advance=1)
+            attempts.append(
+                Attempt(
+                    question_id=question.id,
+                    answer=answer,
+                    response_time_ms=response_time_ms,
+                )
+            )
+    return attempts

@@ -1,7 +1,10 @@
 """Unit tests for the versioned Spanglish HTTP client."""
 
+from types import SimpleNamespace
+
 import httpx
 import pytest
+from r2d2_sdk import MemoryTokenStore, TokenPair
 
 from src.api_client import SpanglishAPIClient, SpanglishAPIError
 
@@ -16,11 +19,40 @@ VOCABULARY = {
     "verb_conjugations": [],
     "created_at": "2026-09-03T10:00:00Z",
 }
+USER = {
+    "id": "123e4567-e89b-12d3-a456-426614174000",
+    "username": "learner",
+    "email": "learner@example.com",
+    "avatar_url": None,
+    "is_active": True,
+    "last_login_at": None,
+    "created_at": "2026-09-03T10:00:00Z",
+}
 
 
-def response_for(request: httpx.Request) -> httpx.Response:
+def response_for(request: httpx.Request) -> httpx.Response:  # noqa: C901
     """Return representative backend responses for every client operation."""
     path = request.url.path
+    if path == "/health":
+        return httpx.Response(200, json={"status": "ok"})
+    if path.endswith("/auth/me"):
+        return httpx.Response(200, json=USER)
+    if path.endswith("/auth/login"):
+        return httpx.Response(
+            200,
+            json={
+                "access_token": "new-access-token",
+                "refresh_token": "n" * 40,
+                "token_type": "bearer",
+                "expires_in": 900,
+            },
+        )
+    if path.endswith("/auth/register"):
+        return httpx.Response(201, json=USER)
+    if path.endswith("/auth/password-reset/request"):
+        return httpx.Response(202, json={"message": "If the account exists"})
+    if path.endswith("/auth/password-reset/confirm"):
+        return httpx.Response(204)
     if path.endswith("/quiz-options"):
         return httpx.Response(
             200,
@@ -83,6 +115,10 @@ def response_for(request: httpx.Request) -> httpx.Response:
         if request.method == "GET":
             return httpx.Response(200, json=[{"id": 5, "name": "Chapter 1"}])
         return httpx.Response(201, json={"id": 5, "name": "Chapter 1"})
+    if path.endswith("/categories"):
+        assert request.method == "POST"
+        assert request.read() == b'{"name":"Connectors"}'
+        return httpx.Response(201, json={"id": 6, "name": "Connectors"})
     if path.endswith("/vocabulary/7") and request.method == "DELETE":
         return httpx.Response(204)
     return httpx.Response(
@@ -92,11 +128,35 @@ def response_for(request: httpx.Request) -> httpx.Response:
 
 def test_client_supports_crud_and_quiz_lifecycle() -> None:
     """Validate every API operation into its Pydantic response model."""
+    token_store = MemoryTokenStore()
+    token_store.save(
+        TokenPair(
+            access_token="access-token",
+            refresh_token="r" * 40,
+            token_type="bearer",
+            expires_in=900,
+        )
+    )
     with SpanglishAPIClient(
         base_url="https://example.test/api/v1/spanglish",
         transport=httpx.MockTransport(response_for),
+        token_store=token_store,
     ) as client:
+        client.check_connection()
+        assert client.check_authentication() == "learner@example.com"
+        assert (
+            client.register("learner", "learner@example.com", "secret-password")
+            == "learner@example.com"
+        )
+        assert client.login("learner@example.com", "secret") == "learner@example.com"
+        client.request_password_reset("learner@example.com")
+        client.confirm_password_reset("t" * 32, "new-password")
+        assert (
+            client.login("learner@example.com", "new-password")
+            == "learner@example.com"
+        )
         assert client.get_quiz_options().languages[0].code == "es"
+        assert client.create_category("Connectors").name == "Connectors"
         assert client.list_chapters()[0].name == "Chapter 1"
         assert client.create_chapter("Chapter 1").id == 5
         assert client.list_vocabulary(
@@ -120,7 +180,18 @@ def test_client_translates_api_and_network_errors() -> None:
     def api_error(request: httpx.Request) -> httpx.Response:
         return httpx.Response(404, json={"detail": "Vocabulary not found"})
 
-    client = SpanglishAPIClient(transport=httpx.MockTransport(api_error))
+    token_store = MemoryTokenStore()
+    token_store.save(
+        TokenPair(
+            access_token="access-token",
+            refresh_token="r" * 40,
+            token_type="bearer",
+            expires_in=900,
+        )
+    )
+    client = SpanglishAPIClient(
+        transport=httpx.MockTransport(api_error), token_store=token_store
+    )
     with pytest.raises(SpanglishAPIError, match="Vocabulary not found"):
         client.get_vocabulary(99)
     client.close()
@@ -128,7 +199,44 @@ def test_client_translates_api_and_network_errors() -> None:
     def network_error(request: httpx.Request) -> httpx.Response:
         raise httpx.ConnectError("offline", request=request)
 
-    client = SpanglishAPIClient(transport=httpx.MockTransport(network_error))
+    client = SpanglishAPIClient(
+        transport=httpx.MockTransport(network_error), token_store=token_store
+    )
     with pytest.raises(SpanglishAPIError, match="Could not connect"):
         client.get_quiz_options()
+    client.close()
+
+
+def test_health_check_rejects_unhealthy_response() -> None:
+    client = SpanglishAPIClient(
+        transport=httpx.MockTransport(
+            lambda _request: httpx.Response(200, json={"status": "degraded"})
+        )
+    )
+    with pytest.raises(SpanglishAPIError, match="unhealthy status"):
+        client.check_connection()
+    client.close()
+
+
+def test_password_reset_supports_older_sdk_clients() -> None:
+    token_store = MemoryTokenStore()
+    token_store.save(TokenPair.model_validate({
+        "access_token": "access-token",
+        "refresh_token": "r" * 40,
+        "token_type": "bearer",
+        "expires_in": 900,
+    }))
+    client = SpanglishAPIClient(
+        base_url="https://example.test/api/v1/spanglish",
+        transport=httpx.MockTransport(response_for),
+    )
+    client._auth = SimpleNamespace(
+        token_store=token_store,
+        close=lambda: None,
+    )
+
+    client.request_password_reset("learner@example.com")
+    client.confirm_password_reset("t" * 32, "new-password")
+
+    assert token_store.load() is None
     client.close()

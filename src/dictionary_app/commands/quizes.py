@@ -10,7 +10,12 @@ from rich.progress import Progress
 from src.api_client import SpanglishAPIClient, SpanglishAPIError
 from src.api_models import Attempt, QuizQuestion
 from src.progressbars.quiz import quiz_progress
-from src.utils import normalize_optional_id, optional_id_list
+from src.utils import (
+    confirm_with_quit,
+    normalize_optional_id,
+    optional_id_list,
+    select_with_quit,
+)
 
 console = Console()
 
@@ -54,33 +59,33 @@ def start(client: SpanglishAPIClient | None = None) -> None:
             questionary.Choice(item.name, value=item.id) for item in options.categories
         ]
         category_id = normalize_optional_id(
-            questionary.select("Select a category", choices=category_choices).ask()
+            select_with_quit("Select a category", category_choices)
         )
         chapter_choices = [questionary.Choice("All chapters", value="")] + [
             questionary.Choice(item.name, value=item.id) for item in options.chapters
         ]
         chapter_id = normalize_optional_id(
-            questionary.select("Select a chapter", choices=chapter_choices).ask()
+            select_with_quit("Select a chapter", chapter_choices)
         )
-        source_id = questionary.select(
+        source_id = select_with_quit(
             "Translate from",
-            choices=[
+            [
                 questionary.Choice(item.name, value=item.id)
                 for item in options.languages
             ],
-        ).ask()
+        )
         target_languages = [item for item in options.languages if item.id != source_id]
-        target_id = questionary.select(
+        target_id = select_with_quit(
             "Translate to",
-            choices=[
+            [
                 questionary.Choice(item.name, value=item.id)
                 for item in target_languages
             ],
-        ).ask()
+        )
         count = int(
             prompt("How many questions? ", default=str(options.default_question_count))
         )
-        randomize = questionary.confirm("Randomize selection?", default=True).ask()
+        randomize = confirm_with_quit("Randomize selection?", default=True)
         quiz = client.create_quiz(
             {
                 "source_language_id": source_id,

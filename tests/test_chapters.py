@@ -24,6 +24,17 @@ def options() -> QuizOptions:
     )
 
 
+def phrase_options() -> QuizOptions:
+    """Return selectable metadata containing the automatic phrase mapping."""
+    values = options().model_dump()
+    values["categories"] = [{"id": 6, "name": "Phrases"}]
+    values["vocabulary_types"] = [
+        {"id": 4, "name": "Word"},
+        {"id": 8, "name": "Phrase"},
+    ]
+    return QuizOptions.model_validate(values)
+
+
 class Selection:
     def __init__(self, value):
         self.value = value
@@ -41,7 +52,7 @@ def test_vocabulary_chapter_is_optional(monkeypatch) -> None:
     monkeypatch.setattr(
         vocabulary.questionary, "select", lambda *args, **kwargs: Selection("")
     )
-    answers = iter(["perro", "dog", "N"])
+    answers = iter(["perro", "dog"])
     monkeypatch.setattr(vocabulary, "prompt", lambda *args, **kwargs: next(answers))
     assert vocabulary._build_payload(options())["chapter_id"] is None
 
@@ -52,3 +63,69 @@ def test_create_chapter_delegates_to_api(monkeypatch) -> None:
     )
     monkeypatch.setattr(vocabulary, "prompt", lambda _message: "Chapter 1")
     vocabulary.create_chapter(client)
+
+
+def test_create_category_delegates_to_api(monkeypatch) -> None:
+    client = SimpleNamespace(
+        create_category=lambda name: SimpleNamespace(id=6, name=name)
+    )
+    monkeypatch.setattr(vocabulary, "prompt", lambda _message: "Connectors")
+    vocabulary.create_category(client)
+
+
+def test_add_vocabulary_reuses_context_for_batch(monkeypatch) -> None:
+    selections = []
+
+    def select_id(message, values, default=None):
+        selections.append(message)
+        return 3 if "category" in message else 4
+
+    monkeypatch.setattr(vocabulary, "_select_id", select_id)
+    monkeypatch.setattr(
+        vocabulary, "select_with_quit", lambda *args, **kwargs: 5
+    )
+    confirmations = iter([False, True, False, False])
+    monkeypatch.setattr(
+        vocabulary,
+        "confirm_with_quit",
+        lambda *args, **kwargs: next(confirmations),
+    )
+    answers = iter(["perro", "dog", "gato", "cat"])
+    monkeypatch.setattr(vocabulary, "prompt", lambda *args, **kwargs: next(answers))
+    payloads = []
+    client = SimpleNamespace(
+        get_quiz_options=options,
+        create_vocabulary=lambda payload: payloads.append(payload)
+        or SimpleNamespace(
+            text=payload["text"],
+            translations=[SimpleNamespace(translation=payload["translations"][0]["text"])],
+        ),
+    )
+
+    vocabulary.add_vocabulary(client)
+
+    assert selections == ["Select a category", "Select a vocabulary type"]
+    assert [payload["text"] for payload in payloads] == ["perro", "gato"]
+    assert all(payload["category_ids"] == [3] for payload in payloads)
+    assert all(payload["vocabulary_type_id"] == 4 for payload in payloads)
+    assert all(payload["chapter_id"] == 5 for payload in payloads)
+
+
+def test_phrases_category_automatically_uses_phrase_type(monkeypatch) -> None:
+    selection_messages = []
+
+    def select_id(message, values, default=None):
+        selection_messages.append(message)
+        return 6
+
+    monkeypatch.setattr(vocabulary, "_select_id", select_id)
+    monkeypatch.setattr(
+        vocabulary, "select_with_quit", lambda *args, **kwargs: None
+    )
+
+    context = vocabulary._select_vocabulary_context(phrase_options())
+
+    assert context.category_id == 6
+    assert context.vocabulary_type_id == 8
+    assert context.chapter_id is None
+    assert selection_messages == ["Select a category"]

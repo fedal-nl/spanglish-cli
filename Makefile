@@ -1,4 +1,4 @@
-.PHONY: start create-account test lint patch minor major release clean help
+.PHONY: start create-account login test lint patch minor major release clean help
 
 # ---------------------------------
 # Application start command
@@ -9,6 +9,9 @@ start:
 
 create-account:
 	@uv run python -m src.create_account
+
+login:
+	@uv run python -m src.login
 
 # ---------------------------------
 # Quality checks
@@ -50,6 +53,7 @@ help:
 	@echo "Available make commands:"
 	@echo "  make start       - Run the application"
 	@echo "  make create-account - Create an R2D2 API user account"
+	@echo "  make login       - Log in and save the CLI authentication session"
 	@echo "  make test        - Run tests with pytest"
 	@echo "  make lint        - Run Ruff"
 	@echo "  make release     - Bump patch version and tag release"

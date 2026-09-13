@@ -1,5 +1,7 @@
 """Interactive vocabulary CRUD commands backed by the Spanglish HTTP API."""
 
+from dataclasses import dataclass
+
 import questionary
 from prompt_toolkit import prompt
 from rich.console import Console
@@ -7,16 +9,25 @@ from rich.table import Table
 
 from src.api_client import SpanglishAPIClient, SpanglishAPIError
 from src.api_models import QuizOptions, Vocabulary
-from src.utils import normalize_optional_id
+from src.utils import confirm_with_quit, normalize_optional_id, select_with_quit
 
 console = Console()
 PRONOUNS = ("yo", "tú", "él/ella", "nosotros", "vosotros", "ellos/ellas")
 
 
+@dataclass(frozen=True)
+class VocabularyContext:
+    """Selections shared by every vocabulary item in one entry batch."""
+
+    category_id: int
+    vocabulary_type_id: int
+    chapter_id: int | None
+
+
 def _select_id(message: str, values, default: int | None = None) -> int:
     """Display named API resources and return the selected identifier."""
     choices = [questionary.Choice(item.name, value=item.id) for item in values]
-    return questionary.select(message, choices=choices, default=default).ask()
+    return select_with_quit(message, choices, default=default)
 
 
 def _collect_translations(target_language_id: int, current=None) -> list[dict]:
@@ -28,8 +39,7 @@ def _collect_translations(target_language_id: int, current=None) -> list[dict]:
         text = prompt("Enter a translation: ", default=default).strip()
         if text:
             translations.append({"language_id": target_language_id, "text": text})
-        more = prompt("Add another translation [y/N]? ", default="N").strip().lower()
-        if more not in ("y", "yes"):
+        if not confirm_with_quit("Add another translation?", default=False):
             break
     return translations
 
@@ -54,37 +64,65 @@ def _collect_conjugations(current=None) -> list[dict]:
     return conjugations
 
 
-def _build_payload(options: QuizOptions, current: Vocabulary | None = None) -> dict:
-    """Build a create/update payload from interactive API-backed choices."""
-    spanish = next(item for item in options.languages if item.code == "es")
-    english = next(item for item in options.languages if item.code == "en")
+def _select_vocabulary_context(
+    options: QuizOptions, current: Vocabulary | None = None
+) -> VocabularyContext:
+    """Collect category, vocabulary type, and optional chapter selections."""
     category_id = _select_id(
         "Select a category",
         options.categories,
         current.categories[0].id if current and current.categories else None,
     )
-    vocabulary_type_id = _select_id(
-        "Select a vocabulary type",
-        options.vocabulary_types,
-        current.vocabulary_type.id if current else None,
-    )
+    category = next(item for item in options.categories if item.id == category_id)
+    if category.name.casefold() == "phrases":
+        phrase_type = next(
+            (
+                item
+                for item in options.vocabulary_types
+                if item.name.casefold() == "phrase"
+            ),
+            None,
+        )
+        if phrase_type is None:
+            raise ValueError("The Phrase vocabulary type is not available")
+        vocabulary_type_id = phrase_type.id
+    else:
+        vocabulary_type_id = _select_id(
+            "Select a vocabulary type",
+            options.vocabulary_types,
+            current.vocabulary_type.id if current else None,
+        )
     chapter_choices = [questionary.Choice("No chapter", value="")] + [
         questionary.Choice(item.name, value=item.id) for item in options.chapters
     ]
     chapter_id = normalize_optional_id(
-        questionary.select(
+        select_with_quit(
             "Select a chapter (optional)",
-            choices=chapter_choices,
+            chapter_choices,
             default=current.chapter.id if current and current.chapter else "",
-        ).ask()
+        )
     )
+    return VocabularyContext(category_id, vocabulary_type_id, chapter_id)
+
+
+def _build_payload(
+    options: QuizOptions,
+    current: Vocabulary | None = None,
+    context: VocabularyContext | None = None,
+) -> dict:
+    """Build a create/update payload from interactive API-backed choices."""
+    spanish = next(item for item in options.languages if item.code == "es")
+    english = next(item for item in options.languages if item.code == "en")
+    context = context or _select_vocabulary_context(options, current)
     text = prompt(
         "Enter the Spanish text: ", default=current.text if current else ""
     ).strip()
     translations = _collect_translations(
         english.id, current.translations if current else None
     )
-    category = next(item for item in options.categories if item.id == category_id)
+    category = next(
+        item for item in options.categories if item.id == context.category_id
+    )
     conjugations = []
     if category.name.casefold() == "verb":
         conjugations = _collect_conjugations(
@@ -93,9 +131,9 @@ def _build_payload(options: QuizOptions, current: Vocabulary | None = None) -> d
     return {
         "text": text,
         "language_id": spanish.id,
-        "vocabulary_type_id": vocabulary_type_id,
-        "chapter_id": chapter_id,
-        "category_ids": [category_id],
+        "vocabulary_type_id": context.vocabulary_type_id,
+        "chapter_id": context.chapter_id,
+        "category_ids": [context.category_id],
         "translations": translations,
         "conjugations": conjugations,
     }
@@ -107,12 +145,14 @@ def add_vocabulary(client: SpanglishAPIClient | None = None) -> None:
     client = client or SpanglishAPIClient()
     try:
         options = client.get_quiz_options()
+        context = _select_vocabulary_context(options)
         while True:
-            created = client.create_vocabulary(_build_payload(options))
+            created = client.create_vocabulary(
+                _build_payload(options, context=context)
+            )
             translations = ", ".join(item.translation for item in created.translations)
             console.print(f"[green]Added:[/] {created.text} -> {translations}")
-            more = prompt("Add another text [y/N]? ", default="N").strip().lower()
-            if more not in ("y", "yes"):
+            if not confirm_with_quit("Add another text?", default=False):
                 break
     except (SpanglishAPIError, StopIteration) as exc:
         console.print(f"[red]{exc}[/red]")
@@ -131,16 +171,16 @@ def list_vocabulary(client: SpanglishAPIClient | None = None) -> None:
             questionary.Choice(item.name, value=item.id) for item in options.categories
         ]
         category_id = normalize_optional_id(
-            questionary.select("Select a category", choices=choices).ask()
+            select_with_quit("Select a category", choices)
         )
         chapter_choices = [questionary.Choice("All chapters", value="")] + [
             questionary.Choice(item.name, value=item.id) for item in options.chapters
         ]
         chapter_id = normalize_optional_id(
-            questionary.select("Select a chapter", choices=chapter_choices).ask()
+            select_with_quit("Select a chapter", chapter_choices)
         )
         page_size = int(prompt("How many records? ", default="10"))
-        randomize = questionary.confirm("Randomize selection?", default=False).ask()
+        randomize = confirm_with_quit("Randomize selection?", default=False)
         page = client.list_vocabulary(
             page_size=page_size,
             category_id=category_id,
@@ -180,9 +220,9 @@ def delete_vocabulary(client: SpanglishAPIClient | None = None) -> None:
     try:
         vocabulary_id = int(prompt("Vocabulary ID to delete: "))
         vocabulary = client.get_vocabulary(vocabulary_id)
-        confirmed = questionary.confirm(
+        confirmed = confirm_with_quit(
             f"Delete '{vocabulary.text}'?", default=False
-        ).ask()
+        )
         if confirmed:
             client.delete_vocabulary(vocabulary_id)
             console.print(f"[green]Deleted:[/] {vocabulary.text}")
@@ -203,6 +243,23 @@ def create_chapter(client: SpanglishAPIClient | None = None) -> None:
             raise ValueError("Chapter name cannot be empty")
         chapter = client.create_chapter(name)
         console.print(f"[green]Created chapter:[/] {chapter.name} (ID {chapter.id})")
+    except (SpanglishAPIError, ValueError) as exc:
+        console.print(f"[red]{exc}[/red]")
+    finally:
+        if owns_client:
+            client.close()
+
+
+def create_category(client: SpanglishAPIClient | None = None) -> None:
+    """Create a category used to organize vocabulary and quizzes."""
+    owns_client = client is None
+    client = client or SpanglishAPIClient()
+    try:
+        name = prompt("Category name: ").strip()
+        if not name:
+            raise ValueError("Category name cannot be empty")
+        category = client.create_category(name)
+        console.print(f"[green]Created category:[/] {category.name} (ID {category.id})")
     except (SpanglishAPIError, ValueError) as exc:
         console.print(f"[red]{exc}[/red]")
     finally:

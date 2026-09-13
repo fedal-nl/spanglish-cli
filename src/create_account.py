@@ -5,14 +5,11 @@ import getpass
 from pydantic import ValidationError
 from r2d2_sdk import R2D2Client, R2D2Error
 
-from src.settings import SPANGLISH_API_URL
+from src.settings import R2D2_API_URL
 
 
-def api_root(spanglish_url: str = SPANGLISH_API_URL) -> str:
+def api_root(spanglish_url: str = R2D2_API_URL) -> str:
     """Return the R2D2 API root from the configured Spanglish endpoint."""
-    suffix = "/spanglish"
-    if spanglish_url.endswith(suffix):
-        return spanglish_url[: -len(suffix)]
     return spanglish_url
 
 

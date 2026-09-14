@@ -8,6 +8,7 @@ from r2d2_sdk import FileTokenStore, R2D2Client, R2D2Error, TokenStore
 
 from src.api_models import (
     Quiz,
+    QuizHistoryItem,
     QuizOptions,
     QuizResult,
     Reference,
@@ -44,6 +45,10 @@ class SpanglishAPIClient:
         )
         self._health = httpx.Client(
             base_url=server_url, timeout=timeout, transport=transport
+        )
+        print(
+            f"SpanglishAPIClient initialized with base_url={base_url}, "
+            f"timeout={timeout}"
         )
 
     def __enter__(self) -> "SpanglishAPIClient":
@@ -227,6 +232,15 @@ class SpanglishAPIClient:
         return QuizResult.model_validate(
             self._request("POST", f"/quizzes/{quiz_id}/results", json=payload)
         )
+
+    def list_quiz_results(self, limit: int = 5) -> list[QuizHistoryItem]:
+        """Fetch the authenticated learner's most recent completed quiz scores."""
+        return [
+            QuizHistoryItem.model_validate(item)
+            for item in self._request(
+                "GET", "/quizzes/results", params={"limit": limit}
+            )
+        ]
 
     def _request(self, method: str, path: str, **kwargs: Any) -> Any:
         """Send a request and translate HTTP/network errors for terminal display."""

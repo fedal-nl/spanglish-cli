@@ -31,7 +31,6 @@ class QuizOptions(BaseModel):
     languages: list[Language]
     categories: list[Category]
     chapters: list[Reference]
-    vocabulary_types: list[Reference]
     selection_modes: list[str]
     question_types: list[str]
     default_question_count: int
@@ -62,7 +61,6 @@ class Vocabulary(BaseModel):
     id: int
     text: str
     language: Language
-    vocabulary_type: Reference
     chapter: Reference | None
     categories: list[Reference]
     translations: list[Translation]
@@ -119,11 +117,31 @@ class Score(BaseModel):
     percentage: float
 
 
+class AttemptEvaluation(BaseModel):
+    """Represent the API's authoritative evaluation of one quiz answer."""
+
+    question_id: str
+    correct: bool
+    score: float
+    accepted_answers: list[str] | dict[str, list[str]]
+    feedback: str
+
+
 class QuizResult(BaseModel):
     """Represent a completed quiz result and server advice."""
 
     result_id: int
     quiz_id: int
     score: Score
-    attempts: list[dict[str, Any]]
+    attempts: list[AttemptEvaluation]
     advice: dict[str, Any]
+
+
+class QuizHistoryItem(BaseModel):
+    """Represent one completed quiz in the learner's score history."""
+
+    quiz_id: int
+    completed_at: datetime
+    correct: int
+    total: int
+    percentage: float

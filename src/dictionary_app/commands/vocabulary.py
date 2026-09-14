@@ -20,7 +20,6 @@ class VocabularyContext:
     """Selections shared by every vocabulary item in one entry batch."""
 
     category_id: int
-    vocabulary_type_id: int
     chapter_id: int | None
 
 
@@ -67,31 +66,12 @@ def _collect_conjugations(current=None) -> list[dict]:
 def _select_vocabulary_context(
     options: QuizOptions, current: Vocabulary | None = None
 ) -> VocabularyContext:
-    """Collect category, vocabulary type, and optional chapter selections."""
+    """Collect category and optional chapter selections."""
     category_id = _select_id(
         "Select a category",
         options.categories,
         current.categories[0].id if current and current.categories else None,
     )
-    category = next(item for item in options.categories if item.id == category_id)
-    if category.name.casefold() == "phrases":
-        phrase_type = next(
-            (
-                item
-                for item in options.vocabulary_types
-                if item.name.casefold() == "phrase"
-            ),
-            None,
-        )
-        if phrase_type is None:
-            raise ValueError("The Phrase vocabulary type is not available")
-        vocabulary_type_id = phrase_type.id
-    else:
-        vocabulary_type_id = _select_id(
-            "Select a vocabulary type",
-            options.vocabulary_types,
-            current.vocabulary_type.id if current else None,
-        )
     chapter_choices = [questionary.Choice("No chapter", value="")] + [
         questionary.Choice(item.name, value=item.id) for item in options.chapters
     ]
@@ -102,7 +82,7 @@ def _select_vocabulary_context(
             default=current.chapter.id if current and current.chapter else "",
         )
     )
-    return VocabularyContext(category_id, vocabulary_type_id, chapter_id)
+    return VocabularyContext(category_id, chapter_id)
 
 
 def _build_payload(
@@ -131,7 +111,6 @@ def _build_payload(
     return {
         "text": text,
         "language_id": spanish.id,
-        "vocabulary_type_id": context.vocabulary_type_id,
         "chapter_id": context.chapter_id,
         "category_ids": [context.category_id],
         "translations": translations,

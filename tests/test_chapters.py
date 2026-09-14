@@ -15,24 +15,12 @@ def options() -> QuizOptions:
             ],
             "categories": [{"id": 3, "name": "Animals"}],
             "chapters": [{"id": 5, "name": "Chapter 1"}],
-            "vocabulary_types": [{"id": 4, "name": "Word"}],
             "selection_modes": ["random"],
             "question_types": ["translation"],
             "default_question_count": 10,
             "maximum_question_count": 100,
         }
     )
-
-
-def phrase_options() -> QuizOptions:
-    """Return selectable metadata containing the automatic phrase mapping."""
-    values = options().model_dump()
-    values["categories"] = [{"id": 6, "name": "Phrases"}]
-    values["vocabulary_types"] = [
-        {"id": 4, "name": "Word"},
-        {"id": 8, "name": "Phrase"},
-    ]
-    return QuizOptions.model_validate(values)
 
 
 class Selection:
@@ -47,7 +35,7 @@ def test_vocabulary_chapter_is_optional(monkeypatch) -> None:
     monkeypatch.setattr(
         vocabulary,
         "_select_id",
-        lambda message, values, default=None: 3 if "category" in message else 4,
+        lambda message, values, default=None: 3,
     )
     monkeypatch.setattr(
         vocabulary.questionary, "select", lambda *args, **kwargs: Selection("")
@@ -78,7 +66,7 @@ def test_add_vocabulary_reuses_context_for_batch(monkeypatch) -> None:
 
     def select_id(message, values, default=None):
         selections.append(message)
-        return 3 if "category" in message else 4
+        return 3
 
     monkeypatch.setattr(vocabulary, "_select_id", select_id)
     monkeypatch.setattr(
@@ -104,28 +92,7 @@ def test_add_vocabulary_reuses_context_for_batch(monkeypatch) -> None:
 
     vocabulary.add_vocabulary(client)
 
-    assert selections == ["Select a category", "Select a vocabulary type"]
+    assert selections == ["Select a category"]
     assert [payload["text"] for payload in payloads] == ["perro", "gato"]
     assert all(payload["category_ids"] == [3] for payload in payloads)
-    assert all(payload["vocabulary_type_id"] == 4 for payload in payloads)
     assert all(payload["chapter_id"] == 5 for payload in payloads)
-
-
-def test_phrases_category_automatically_uses_phrase_type(monkeypatch) -> None:
-    selection_messages = []
-
-    def select_id(message, values, default=None):
-        selection_messages.append(message)
-        return 6
-
-    monkeypatch.setattr(vocabulary, "_select_id", select_id)
-    monkeypatch.setattr(
-        vocabulary, "select_with_quit", lambda *args, **kwargs: None
-    )
-
-    context = vocabulary._select_vocabulary_context(phrase_options())
-
-    assert context.category_id == 6
-    assert context.vocabulary_type_id == 8
-    assert context.chapter_id is None
-    assert selection_messages == ["Select a category"]

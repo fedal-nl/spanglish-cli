@@ -12,7 +12,6 @@ VOCABULARY = {
     "id": 7,
     "text": "perro",
     "language": {"id": 1, "name": "Spanish", "code": "es"},
-    "vocabulary_type": {"id": 3, "name": "Word"},
     "chapter": None,
     "categories": [{"id": 4, "name": "Animals"}],
     "translations": [{"id": 8, "language_id": 2, "translation": "dog"}],
@@ -63,7 +62,6 @@ def response_for(request: httpx.Request) -> httpx.Response:  # noqa: C901
                 ],
                 "categories": [{"id": 4, "name": "Animals", "available_questions": 1}],
                 "chapters": [{"id": 5, "name": "Chapter 1"}],
-                "vocabulary_types": [{"id": 3, "name": "Word"}],
                 "selection_modes": ["random", "sequential"],
                 "question_types": ["translation", "conjugation"],
                 "default_question_count": 10,
@@ -80,6 +78,20 @@ def response_for(request: httpx.Request) -> httpx.Response:  # noqa: C901
                 "attempts": [],
                 "advice": {"summary": "Strong result."},
             },
+        )
+    if path.endswith("/quizzes/results"):
+        assert request.url.params["limit"] == "5"
+        return httpx.Response(
+            200,
+            json=[
+                {
+                    "quiz_id": 9,
+                    "completed_at": "2026-09-03T10:00:00Z",
+                    "correct": 1,
+                    "total": 1,
+                    "percentage": 100,
+                }
+            ],
         )
     if path.endswith("/quizzes"):
         return httpx.Response(
@@ -172,6 +184,7 @@ def test_client_supports_crud_and_quiz_lifecycle() -> None:
         quiz = client.create_quiz({})
         assert quiz.questions[0].accepted_answers == ["dog"]
         assert client.submit_quiz(9, {}).score.percentage == 100
+        assert client.list_quiz_results(limit=5)[0].quiz_id == 9
 
 
 def test_client_translates_api_and_network_errors() -> None:

@@ -90,10 +90,8 @@ The menu supports:
 - Create chapters for lesson-based vocabulary and quizzes.
 - Create categories used to organize vocabulary and quizzes.
 - Create vocabulary, translations, and present-tense verb conjugations.
-- Reuse category, vocabulary type, and chapter selections when entering several
-  vocabulary items in one batch.
-- Automatically use the `Phrase` vocabulary type when the `Phrases` category is
-  selected, skipping the redundant vocabulary-type menu.
+- Reuse category and chapter selections when entering several vocabulary items
+  in one batch.
 - Answer confirmation questions with selectable Yes/No choices instead of typed
   letters; every confirmation also includes the global red Quit entry.
 - Optionally assign vocabulary to a chapter or leave it without one.

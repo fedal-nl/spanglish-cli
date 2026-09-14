@@ -26,13 +26,13 @@ lint:
 # Bump version and tag release
 # ---------------------------------
 patch:
-	uv run bump2version patch
+	uv run bump2version --allow-dirty patch
 
 minor:
-	uv run bump2version minor
+	uv run bump2version --allow-dirty minor
 
 major:
-	uv run bump2version major
+	uv run bump2version --allow-dirty major
 
 # Full release: bump patch, commit, tag, push
 release: patch

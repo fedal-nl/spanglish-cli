@@ -127,6 +127,19 @@ def response_for(request: httpx.Request) -> httpx.Response:  # noqa: C901
         if request.method == "GET":
             return httpx.Response(200, json=[{"id": 5, "name": "Chapter 1"}])
         return httpx.Response(201, json={"id": 5, "name": "Chapter 1"})
+    if path.endswith("/artists"):
+        return httpx.Response(
+            200 if request.method == "GET" else 201,
+            json=[{"id": 7, "name": "Singer"}]
+            if request.method == "GET"
+            else {"id": 7, "name": "Singer"},
+        )
+    if path.endswith("/songs"):
+        song = {"id": 9, "title": "Title", "artist": {"id": 7, "name": "Singer"}}
+        return httpx.Response(
+            200 if request.method == "GET" else 201,
+            json=[song] if request.method == "GET" else song,
+        )
     if path.endswith("/categories"):
         assert request.method == "POST"
         assert request.read() == b'{"name":"Connectors"}'
@@ -164,19 +177,27 @@ def test_client_supports_crud_and_quiz_lifecycle() -> None:
         client.request_password_reset("learner@example.com")
         client.confirm_password_reset("t" * 32, "new-password")
         assert (
-            client.login("learner@example.com", "new-password")
-            == "learner@example.com"
+            client.login("learner@example.com", "new-password") == "learner@example.com"
         )
         assert client.get_quiz_options().languages[0].code == "es"
         assert client.create_category("Connectors").name == "Connectors"
         assert client.list_chapters()[0].name == "Chapter 1"
         assert client.create_chapter("Chapter 1").id == 5
-        assert client.list_vocabulary(
-            page_size=10,
-            language_id="All",
-            category_id="all",
-            chapter_id="All",
-        ).items[0].text == "perro"
+        assert client.list_artists()[0].id == 7
+        assert client.create_artist("Singer").id == 7
+        assert client.list_songs(7)[0].id == 9
+        assert client.create_song("Title", 7).id == 9
+        assert (
+            client.list_vocabulary(
+                page_size=10,
+                language_id="All",
+                category_id="all",
+                chapter_id="All",
+            )
+            .items[0]
+            .text
+            == "perro"
+        )
         assert client.get_vocabulary(7).id == 7
         assert client.create_vocabulary({}).id == 7
         assert client.update_vocabulary(7, {}).id == 7
@@ -233,12 +254,16 @@ def test_health_check_rejects_unhealthy_response() -> None:
 
 def test_password_reset_supports_older_sdk_clients() -> None:
     token_store = MemoryTokenStore()
-    token_store.save(TokenPair.model_validate({
-        "access_token": "access-token",
-        "refresh_token": "r" * 40,
-        "token_type": "bearer",
-        "expires_in": 900,
-    }))
+    token_store.save(
+        TokenPair.model_validate(
+            {
+                "access_token": "access-token",
+                "refresh_token": "r" * 40,
+                "token_type": "bearer",
+                "expires_in": 900,
+            }
+        )
+    )
     client = SpanglishAPIClient(
         base_url="https://example.test/api/v1/spanglish",
         transport=httpx.MockTransport(response_for),

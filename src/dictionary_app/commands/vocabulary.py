@@ -21,6 +21,38 @@ class VocabularyContext:
 
     category_id: int
     chapter_id: int | None
+    song_id: int | None = None
+
+
+def _select_song(client: SpanglishAPIClient, current: Vocabulary | None = None) -> int:
+    """Choose or create an artist and then choose or create one of their songs."""
+    artists = client.list_artists()
+    artist_choices = [questionary.Choice(item.name, value=item.id) for item in artists]
+    artist_choices.append(questionary.Choice("+ Add artist", value="new"))
+    artist_id = select_with_quit(
+        "Select an artist",
+        artist_choices,
+        default=current.song.artist.id if current and current.song else None,
+    )
+    if artist_id == "new":
+        name = prompt("Artist name: ").strip()
+        if not name:
+            raise ValueError("Artist name cannot be empty")
+        artist_id = client.create_artist(name).id
+    songs = client.list_songs(artist_id)
+    song_choices = [questionary.Choice(item.title, value=item.id) for item in songs]
+    song_choices.append(questionary.Choice("+ Add song", value="new"))
+    song_id = select_with_quit(
+        "Select a song",
+        song_choices,
+        default=current.song.id if current and current.song else None,
+    )
+    if song_id == "new":
+        title = prompt("Song title: ").strip()
+        if not title:
+            raise ValueError("Song title cannot be empty")
+        song_id = client.create_song(title, artist_id).id
+    return song_id
 
 
 def _select_id(message: str, values, default: int | None = None) -> int:
@@ -64,7 +96,9 @@ def _collect_conjugations(current=None) -> list[dict]:
 
 
 def _select_vocabulary_context(
-    options: QuizOptions, current: Vocabulary | None = None
+    options: QuizOptions,
+    current: Vocabulary | None = None,
+    client: SpanglishAPIClient | None = None,
 ) -> VocabularyContext:
     """Collect category and optional chapter selections."""
     category_id = _select_id(
@@ -72,6 +106,9 @@ def _select_vocabulary_context(
         options.categories,
         current.categories[0].id if current and current.categories else None,
     )
+    category = next(item for item in options.categories if item.id == category_id)
+    if category.name.casefold() in {"song", "songs"} and client:
+        return VocabularyContext(category_id, None, _select_song(client, current))
     chapter_choices = [questionary.Choice("No chapter", value="")] + [
         questionary.Choice(item.name, value=item.id) for item in options.chapters
     ]
@@ -89,11 +126,12 @@ def _build_payload(
     options: QuizOptions,
     current: Vocabulary | None = None,
     context: VocabularyContext | None = None,
+    client: SpanglishAPIClient | None = None,
 ) -> dict:
     """Build a create/update payload from interactive API-backed choices."""
     spanish = next(item for item in options.languages if item.code == "es")
     english = next(item for item in options.languages if item.code == "en")
-    context = context or _select_vocabulary_context(options, current)
+    context = context or _select_vocabulary_context(options, current, client)
     text = prompt(
         "Enter the Spanish text: ", default=current.text if current else ""
     ).strip()
@@ -112,6 +150,7 @@ def _build_payload(
         "text": text,
         "language_id": spanish.id,
         "chapter_id": context.chapter_id,
+        "song_id": context.song_id,
         "category_ids": [context.category_id],
         "translations": translations,
         "conjugations": conjugations,
@@ -124,16 +163,14 @@ def add_vocabulary(client: SpanglishAPIClient | None = None) -> None:
     client = client or SpanglishAPIClient()
     try:
         options = client.get_quiz_options()
-        context = _select_vocabulary_context(options)
+        context = _select_vocabulary_context(options, client=client)
         while True:
-            created = client.create_vocabulary(
-                _build_payload(options, context=context)
-            )
+            created = client.create_vocabulary(_build_payload(options, context=context))
             translations = ", ".join(item.translation for item in created.translations)
             console.print(f"[green]Added:[/] {created.text} -> {translations}")
             if not confirm_with_quit("Add another text?", default=False):
                 break
-    except (SpanglishAPIError, StopIteration) as exc:
+    except (SpanglishAPIError, StopIteration, ValueError) as exc:
         console.print(f"[red]{exc}[/red]")
     finally:
         if owns_client:
@@ -182,7 +219,8 @@ def update_vocabulary(client: SpanglishAPIClient | None = None) -> None:
         vocabulary_id = int(prompt("Vocabulary ID to update: "))
         current = client.get_vocabulary(vocabulary_id)
         updated = client.update_vocabulary(
-            vocabulary_id, _build_payload(client.get_quiz_options(), current)
+            vocabulary_id,
+            _build_payload(client.get_quiz_options(), current, client=client),
         )
         console.print(f"[green]Updated:[/] {updated.text}")
     except (SpanglishAPIError, ValueError) as exc:
@@ -199,9 +237,7 @@ def delete_vocabulary(client: SpanglishAPIClient | None = None) -> None:
     try:
         vocabulary_id = int(prompt("Vocabulary ID to delete: "))
         vocabulary = client.get_vocabulary(vocabulary_id)
-        confirmed = confirm_with_quit(
-            f"Delete '{vocabulary.text}'?", default=False
-        )
+        confirmed = confirm_with_quit(f"Delete '{vocabulary.text}'?", default=False)
         if confirmed:
             client.delete_vocabulary(vocabulary_id)
             console.print(f"[green]Deleted:[/] {vocabulary.text}")
@@ -253,6 +289,7 @@ def _print_vocabulary(items: list[Vocabulary]) -> None:
         "ID",
         "Text",
         "Chapter",
+        "Song",
         "Categories",
         "Translations",
         "Conjugations",
@@ -263,6 +300,7 @@ def _print_vocabulary(items: list[Vocabulary]) -> None:
             str(item.id),
             item.text,
             item.chapter.name if item.chapter else "—",
+            f"{item.song.title} — {item.song.artist.name}" if item.song else "—",
             ", ".join(category.name for category in item.categories),
             ", ".join(value.translation for value in item.translations),
             ", ".join(

@@ -62,10 +62,19 @@ class Vocabulary(BaseModel):
     text: str
     language: Language
     chapter: Reference | None
+    song: "Song | None" = None
     categories: list[Reference]
     translations: list[Translation]
     verb_conjugations: list[Conjugation]
     created_at: datetime
+
+
+class Song(BaseModel):
+    """A selectable song with its artist."""
+
+    id: int
+    title: str
+    artist: Reference
 
 
 class VocabularyPage(BaseModel):

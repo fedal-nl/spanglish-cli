@@ -90,6 +90,9 @@ The menu supports:
 - Create chapters for lesson-based vocabulary and quizzes.
 - Create categories used to organize vocabulary and quizzes.
 - Create vocabulary, translations, and present-tense verb conjugations.
+- For the Songs category, select or create an artist and song title, then enter
+  lyrics directly. New vocabulary in the same batch keeps that song selection;
+  the Chapter prompt is skipped for Songs.
 - Reuse category and chapter selections when entering several vocabulary items
   in one batch.
 - Answer confirmation questions with selectable Yes/No choices instead of typed
@@ -111,6 +114,8 @@ The menu supports:
 | --- | --- |
 | Load menus | `GET /api/v1/spanglish/quiz-options` |
 | List/create chapters | `GET/POST /api/v1/spanglish/chapters` |
+| List/create artists | `GET/POST /api/v1/spanglish/artists` |
+| List/create songs | `GET/POST /api/v1/spanglish/songs` |
 | Create categories | `POST /api/v1/spanglish/categories` |
 | List vocabulary | `GET /api/v1/spanglish/vocabulary` |
 | Read vocabulary | `GET /api/v1/spanglish/vocabulary/{id}` |
@@ -119,6 +124,20 @@ The menu supports:
 | Delete vocabulary | `DELETE /api/v1/spanglish/vocabulary/{id}` |
 | Generate quiz | `POST /api/v1/spanglish/quizzes` |
 | Submit results | `POST /api/v1/spanglish/quizzes/{id}/results` |
+
+## Pre-commit checks
+
+Install the same Black, Flake8, and Mypy hooks used by the API after syncing
+the CLI development dependencies:
+
+```bash
+uv sync --group dev
+make pre-commit-install
+```
+
+Run the checks manually before committing with `make pre-commit`. Mypy checks
+application code; tests are excluded from static type checking. The existing
+`make lint` command still runs Ruff.
 
 ## Tests
 

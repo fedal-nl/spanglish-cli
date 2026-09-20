@@ -12,6 +12,7 @@ from src.api_models import (
     QuizOptions,
     QuizResult,
     Reference,
+    Song,
     Vocabulary,
     VocabularyPage,
 )
@@ -106,9 +107,7 @@ class SpanglishAPIClient:
         """Ask the API to email a password-reset token when the account exists."""
         operation = getattr(self._auth, "request_password_reset", None)
         if operation is None:
-            self._public_auth_request(
-                "/password-reset/request", {"email": email}
-            )
+            self._public_auth_request("/password-reset/request", {"email": email})
             return
         try:
             operation(email)
@@ -159,14 +158,40 @@ class SpanglishAPIClient:
     def list_chapters(self) -> list[Reference]:
         """Fetch chapters available for vocabulary and quizzes."""
         return [
-            Reference.model_validate(item)
-            for item in self._request("GET", "/chapters")
+            Reference.model_validate(item) for item in self._request("GET", "/chapters")
         ]
 
     def create_chapter(self, name: str) -> Reference:
         """Create a chapter through the shared API."""
         return Reference.model_validate(
             self._request("POST", "/chapters", json={"name": name})
+        )
+
+    def list_artists(self) -> list[Reference]:
+        """List artists owned by the logged-in user."""
+        return [
+            Reference.model_validate(item) for item in self._request("GET", "/artists")
+        ]
+
+    def create_artist(self, name: str) -> Reference:
+        """Create an artist owned by the logged-in user."""
+        return Reference.model_validate(
+            self._request("POST", "/artists", json={"name": name})
+        )
+
+    def list_songs(self, artist_id: int) -> list[Song]:
+        """List this user's songs for one artist."""
+        return [
+            Song.model_validate(item)
+            for item in self._request("GET", "/songs", params={"artist_id": artist_id})
+        ]
+
+    def create_song(self, title: str, artist_id: int) -> Song:
+        """Create a song under one of this user's artists."""
+        return Song.model_validate(
+            self._request(
+                "POST", "/songs", json={"title": title, "artist_id": artist_id}
+            )
         )
 
     def list_vocabulary(
@@ -191,9 +216,7 @@ class SpanglishAPIClient:
             "randomize": randomize,
         }
         params = {
-            key: value
-            for key, value in optional_params.items()
-            if value is not None
+            key: value for key, value in optional_params.items() if value is not None
         }
         return VocabularyPage.model_validate(
             self._request("GET", "/vocabulary", params=params)

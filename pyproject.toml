@@ -1,6 +1,6 @@
 [project]
 name = "spanglishtemp"
-version = "1.4.2"
+version = "1.5.0"
 description = "A CLI tool to help you learn Spanish vocabulary effectively."
 readme = "README.md"
 requires-python = ">=3.14"
@@ -30,5 +30,17 @@ select = ["E", "F", "W", "C90", "B", "I", "Q000"]
 pythonpath = ["."]
 testpaths = ["tests"]
 
+[tool.black]
+line-length = 88
+target-version = ["py314"]
+
 [tool.uv.sources]
 r2d2-sdk-auth = { git = "https://github.com/fedal-nl/r2d2-sdk-auth.git" }
+
+[dependency-groups]
+dev = [
+    "black>=26.5.1",
+    "flake8>=7.3.0",
+    "mypy>=2.3.1",
+    "pre-commit>=4.6.2",
+]

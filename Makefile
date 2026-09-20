@@ -1,4 +1,6 @@
-.PHONY: start create-account login test lint patch minor major release clean help
+.DEFAULT_GOAL := help
+
+.PHONY: start create-account login test lint pre-commit-install pre-commit patch minor major release clean help
 
 # ---------------------------------
 # Application start command
@@ -21,6 +23,12 @@ test:
 
 lint:
 	uv run ruff check .
+
+pre-commit-install:
+	uv run pre-commit install
+
+pre-commit:
+	uv run pre-commit run --all-files
 
 # ---------------------------------
 # Bump version and tag release
@@ -56,6 +64,8 @@ help:
 	@echo "  make login       - Log in and save the CLI authentication session"
 	@echo "  make test        - Run tests with pytest"
 	@echo "  make lint        - Run Ruff"
+	@echo "  make pre-commit-install - Install Black, Flake8, and Mypy commit hooks"
+	@echo "  make pre-commit - Run all commit hooks on tracked files"
 	@echo "  make release     - Bump patch version and tag release"
 	@echo "  make patch       - Bump patch version"
 	@echo "  make minor       - Bump minor version"

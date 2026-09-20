@@ -125,6 +125,20 @@ The menu supports:
 | Generate quiz | `POST /api/v1/spanglish/quizzes` |
 | Submit results | `POST /api/v1/spanglish/quizzes/{id}/results` |
 
+## Pre-commit checks
+
+Install the same Black, Flake8, and Mypy hooks used by the API after syncing
+the CLI development dependencies:
+
+```bash
+uv sync --group dev
+make pre-commit-install
+```
+
+Run the checks manually before committing with `make pre-commit`. Mypy checks
+application code; tests are excluded from static type checking. The existing
+`make lint` command still runs Ruff.
+
 ## Tests
 
 Tests use `httpx.MockTransport`; they do not require a running API or database.

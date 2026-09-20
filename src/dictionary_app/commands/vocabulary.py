@@ -78,7 +78,7 @@ def _collect_translations(target_language_id: int, current=None) -> list[dict]:
 def _collect_conjugations(current=None) -> list[dict]:
     """Collect the six present indicative forms used by the original CLI."""
     existing = {item.pronoun: item.form for item in (current or [])}
-    conjugations = []
+    conjugations: list[dict] = []
     for pronoun in PRONOUNS:
         form = prompt(
             f"Conjugate for '{pronoun}': ", default=existing.get(pronoun, "")
@@ -308,7 +308,3 @@ def _print_vocabulary(items: list[Vocabulary]) -> None:
             ),
         )
     console.print(table)
-
-
-# Preserve the original command import while exposing the clearer function name.
-list = list_vocabulary

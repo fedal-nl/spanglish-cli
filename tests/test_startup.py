@@ -69,9 +69,7 @@ def test_startup_stops_when_login_fails(monkeypatch, capsys) -> None:
     def invalid_login(_email, _password):
         raise SpanglishAPIError("Invalid credentials")
 
-    subject = client(
-        check_authentication=fail("Not logged in"), login=invalid_login
-    )
+    subject = client(check_authentication=fail("Not logged in"), login=invalid_login)
     monkeypatch.setattr(application, "choice", lambda **_kwargs: "login")
     monkeypatch.setattr("builtins.input", lambda _message: "learner@example.com")
     monkeypatch.setattr(application.getpass, "getpass", lambda _message: "wrong")
@@ -85,9 +83,9 @@ def test_startup_can_signup_and_login(monkeypatch, capsys) -> None:
         check_authentication=fail("Not logged in"),
         register=lambda username, email, password: calls.append(
             ("register", username, email, password)
-        ) or email,
-        login=lambda email, password: calls.append(("login", email, password))
+        )
         or email,
+        login=lambda email, password: calls.append(("login", email, password)) or email,
     )
     answers = iter(["learner@example.com", "learner"])
     passwords = iter(["secret-password", "secret-password"])
@@ -129,8 +127,7 @@ def test_startup_can_reset_password_and_login(monkeypatch, capsys) -> None:
         confirm_password_reset=lambda token, password: calls.append(
             ("confirm", token, password)
         ),
-        login=lambda email, password: calls.append(("login", email, password))
-        or email,
+        login=lambda email, password: calls.append(("login", email, password)) or email,
     )
     answers = iter(["learner@example.com", "reset-token-value-that-is-long-enough"])
     passwords = iter(["new-password", "new-password"])

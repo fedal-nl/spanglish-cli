@@ -130,9 +130,11 @@ def response_for(request: httpx.Request) -> httpx.Response:  # noqa: C901
     if path.endswith("/artists"):
         return httpx.Response(
             200 if request.method == "GET" else 201,
-            json=[{"id": 7, "name": "Singer"}]
-            if request.method == "GET"
-            else {"id": 7, "name": "Singer"},
+            json=(
+                [{"id": 7, "name": "Singer"}]
+                if request.method == "GET"
+                else {"id": 7, "name": "Singer"}
+            ),
         )
     if path.endswith("/songs"):
         song = {"id": 9, "title": "Title", "artist": {"id": 7, "name": "Singer"}}

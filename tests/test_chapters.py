@@ -69,9 +69,7 @@ def test_add_vocabulary_reuses_context_for_batch(monkeypatch) -> None:
         return 3
 
     monkeypatch.setattr(vocabulary, "_select_id", select_id)
-    monkeypatch.setattr(
-        vocabulary, "select_with_quit", lambda *args, **kwargs: 5
-    )
+    monkeypatch.setattr(vocabulary, "select_with_quit", lambda *args, **kwargs: 5)
     confirmations = iter([False, True, False, False])
     monkeypatch.setattr(
         vocabulary,
@@ -86,7 +84,9 @@ def test_add_vocabulary_reuses_context_for_batch(monkeypatch) -> None:
         create_vocabulary=lambda payload: payloads.append(payload)
         or SimpleNamespace(
             text=payload["text"],
-            translations=[SimpleNamespace(translation=payload["translations"][0]["text"])],
+            translations=[
+                SimpleNamespace(translation=payload["translations"][0]["text"])
+            ],
         ),
     )
 

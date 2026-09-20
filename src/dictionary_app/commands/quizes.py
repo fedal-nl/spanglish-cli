@@ -31,10 +31,13 @@ def _format_answer(
         return answer or "—"
     if isinstance(answer, list):
         return " / ".join(answer) or "—"
-    return "\n".join(
-        f"{key}: {' / '.join(value) if isinstance(value, list) else value}"
-        for key, value in answer.items()
-    ) or "—"
+    return (
+        "\n".join(
+            f"{key}: {' / '.join(value) if isinstance(value, list) else value}"
+            for key, value in answer.items()
+        )
+        or "—"
+    )
 
 
 def _show_quiz_result(
@@ -75,9 +78,7 @@ def _show_quiz_result(
     score_style = (
         "green"
         if result.score.percentage >= 80
-        else "yellow"
-        if result.score.percentage >= 60
-        else "red"
+        else "yellow" if result.score.percentage >= 60 else "red"
     )
     advice = str(result.advice.get("summary", "Keep practising."))
     summary = Text()
@@ -117,11 +118,7 @@ def _show_progress(history: list[QuizHistoryItem]) -> None:
             difference = item.percentage - previous
             change = f"{difference:+.2f}%"
             change_style = (
-                "green"
-                if difference > 0
-                else "red"
-                if difference < 0
-                else "yellow"
+                "green" if difference > 0 else "red" if difference < 0 else "yellow"
             )
         table.add_row(
             str(index),
@@ -208,10 +205,7 @@ def start(client: SpanglishAPIClient | None = None) -> None:
         target_languages = [item for item in options.languages if item.id != source_id]
         target_id = select_with_quit(
             "Translate to",
-            [
-                questionary.Choice(item.name, value=item.id)
-                for item in target_languages
-            ],
+            [questionary.Choice(item.name, value=item.id) for item in target_languages],
         )
         count = int(
             prompt("How many questions? ", default=str(options.default_question_count))

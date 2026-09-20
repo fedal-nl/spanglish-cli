@@ -16,9 +16,9 @@ from src.dictionary_app.commands.vocabulary import (
     create_category,
     create_chapter,
     delete_vocabulary,
+    list_vocabulary,
     update_vocabulary,
 )
-from src.dictionary_app.commands.vocabulary import list as list_vocabulary
 from src.utils import QuitRequested
 
 console = Console()
@@ -221,7 +221,7 @@ def run() -> None:
     """Run the CLI and turn terminal interrupts into a clean exit."""
     try:
         main_menu()
-    except (QuitRequested, KeyboardInterrupt, EOFError):
+    except QuitRequested, KeyboardInterrupt, EOFError:
         console.print("\n[bold red]Exiting Spanglish CLI. Goodbye![/bold red]\n")
 
 

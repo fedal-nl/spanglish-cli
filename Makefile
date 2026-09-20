@@ -1,3 +1,5 @@
+.DEFAULT_GOAL := help
+
 .PHONY: start create-account login test lint patch minor major release clean help
 
 # ---------------------------------

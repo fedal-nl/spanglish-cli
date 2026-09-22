@@ -55,6 +55,15 @@ class Conjugation(BaseModel):
     form: str
 
 
+class Example(BaseModel):
+    """Represent a translated vocabulary usage example."""
+
+    id: int
+    example: str
+    translation: str
+    created_at: datetime
+
+
 class Vocabulary(BaseModel):
     """Represent a complete vocabulary card."""
 
@@ -66,6 +75,7 @@ class Vocabulary(BaseModel):
     categories: list[Reference]
     translations: list[Translation]
     verb_conjugations: list[Conjugation]
+    examples: list[Example] = Field(default_factory=list)
     created_at: datetime
 
 

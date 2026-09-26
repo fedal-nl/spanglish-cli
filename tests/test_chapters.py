@@ -93,6 +93,6 @@ def test_add_vocabulary_reuses_context_for_batch(monkeypatch) -> None:
     vocabulary.add_vocabulary(client)
 
     assert selections == ["Select a category"]
-    assert [payload["text"] for payload in payloads] == ["perro", "gato"]
+    assert [payload["text"] for payload in payloads] == ["Perro", "Gato"]
     assert all(payload["category_ids"] == [3] for payload in payloads)
     assert all(payload["chapter_id"] == 5 for payload in payloads)

@@ -103,4 +103,4 @@ def test_lyrics_batch_reuses_selected_song(monkeypatch) -> None:
 
     assert selections == ["category"]
     assert [item["song_id"] for item in payloads] == [9, 9]
-    assert [item["text"] for item in payloads] == ["primera", "segunda"]
+    assert [item["text"] for item in payloads] == ["Primera", "Segunda"]

@@ -35,7 +35,7 @@ def _select_song(client: SpanglishAPIClient, current: Vocabulary | None = None) 
         default=current.song.artist.id if current and current.song else None,
     )
     if artist_id == "new":
-        name = prompt("Artist name: ").strip()
+        name = prompt("Artist name: ").strip().capitalize()
         if not name:
             raise ValueError("Artist name cannot be empty")
         artist_id = client.create_artist(name).id
@@ -48,7 +48,7 @@ def _select_song(client: SpanglishAPIClient, current: Vocabulary | None = None) 
         default=current.song.id if current and current.song else None,
     )
     if song_id == "new":
-        title = prompt("Song title: ").strip()
+        title = prompt("Song title: ").strip().capitalize()
         if not title:
             raise ValueError("Song title cannot be empty")
         song_id = client.create_song(title, artist_id).id
@@ -67,7 +67,7 @@ def _collect_translations(target_language_id: int, current=None) -> list[dict]:
     existing = [item.translation for item in (current or [])]
     while True:
         default = existing.pop(0) if existing else ""
-        text = prompt("Enter a translation: ", default=default).strip()
+        text = prompt("Enter a translation: ", default=default).strip().capitalize()
         if text:
             translations.append({"language_id": target_language_id, "text": text})
         if not confirm_with_quit("Add another translation?", default=False):
@@ -80,9 +80,11 @@ def _collect_conjugations(current=None) -> list[dict]:
     existing = {item.pronoun: item.form for item in (current or [])}
     conjugations: list[dict] = []
     for pronoun in PRONOUNS:
-        form = prompt(
-            f"Conjugate for '{pronoun}': ", default=existing.get(pronoun, "")
-        ).strip()
+        form = (
+            prompt(f"Conjugate for '{pronoun}': ", default=existing.get(pronoun, ""))
+            .strip()
+            .capitalize()
+        )
         if form:
             conjugations.append(
                 {
@@ -132,9 +134,11 @@ def _build_payload(
     spanish = next(item for item in options.languages if item.code == "es")
     english = next(item for item in options.languages if item.code == "en")
     context = context or _select_vocabulary_context(options, current, client)
-    text = prompt(
-        "Enter the Spanish text: ", default=current.text if current else ""
-    ).strip()
+    text = (
+        prompt("Enter the Spanish text: ", default=current.text if current else "")
+        .strip()
+        .capitalize()
+    )
     translations = _collect_translations(
         english.id, current.translations if current else None
     )
@@ -253,7 +257,7 @@ def create_chapter(client: SpanglishAPIClient | None = None) -> None:
     owns_client = client is None
     client = client or SpanglishAPIClient()
     try:
-        name = prompt("Chapter name: ").strip()
+        name = prompt("Chapter name: ").strip().capitalize()
         if not name:
             raise ValueError("Chapter name cannot be empty")
         chapter = client.create_chapter(name)
@@ -270,7 +274,7 @@ def create_category(client: SpanglishAPIClient | None = None) -> None:
     owns_client = client is None
     client = client or SpanglishAPIClient()
     try:
-        name = prompt("Category name: ").strip()
+        name = prompt("Category name: ").strip().capitalize()
         if not name:
             raise ValueError("Category name cannot be empty")
         category = client.create_category(name)
